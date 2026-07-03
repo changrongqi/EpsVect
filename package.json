@@ -1,0 +1,19 @@
+{
+  "name": "epsvect",
+  "version": "0.1.0",
+  "description": "前端实时鼠标动向高精度预测系统",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3"
+  },
+  "dependencies": {
+    "@david18284/one-euro-filter": "^1.0.3"
+  }
+}
