@@ -24,6 +24,7 @@ function main(): void {
   const mincutoffSlider = document.getElementById('mincutoff-slider') as HTMLInputElement;
   const betaSlider = document.getElementById('beta-slider') as HTMLInputElement;
   const trailSlider = document.getElementById('trail-slider') as HTMLInputElement;
+  const blendSlider = document.getElementById('blend-slider') as HTMLInputElement;
   const qSlider = document.getElementById('q-slider') as HTMLInputElement;
   const rSlider = document.getElementById('r-slider') as HTMLInputElement;
 
@@ -31,6 +32,7 @@ function main(): void {
   const mincutoff = parseFloat(mincutoffSlider.value);
   const beta = parseFloat(betaSlider.value);
   const trailLength = parseInt(trailSlider.value, 10);
+  const blendRatio = parseInt(blendSlider.value, 10) / 100;
   const kalmanQ = parseInt(qSlider.value, 10);
   const kalmanR = parseInt(rSlider.value, 10);
 
@@ -40,6 +42,7 @@ function main(): void {
     beta,
     kalmanQ,
     kalmanR,
+    blendRatio,
   });
 
   const directionDetector = new DirectionDetector();
@@ -62,6 +65,8 @@ function main(): void {
       betaValueEl: document.getElementById('beta-value')!,
       trailSlider,
       trailValueEl: document.getElementById('trail-value')!,
+      blendSlider,
+      blendValueEl: document.getElementById('blend-value')!,
       qSlider,
       qValueEl: document.getElementById('q-value')!,
       rSlider,
@@ -72,6 +77,7 @@ function main(): void {
       onMincutoffChange: (value) => dataProcessor.updateMincutoff(value),
       onBetaChange: (value) => dataProcessor.updateBeta(value),
       onTrailLengthChange: (value) => setMaxTrailLength(value),
+      onBlendChange: (value) => dataProcessor.updateBlendRatio(value),
       onQChange: (value) => dataProcessor.updateKalmanQ(value),
       onRChange: (value) => dataProcessor.updateKalmanR(value),
     },
@@ -88,6 +94,7 @@ function main(): void {
       smoothCoordsEl: document.getElementById('smooth-coords')!,
       predCoordsEl: document.getElementById('pred-coords')!,
       speedDisplayEl: document.getElementById('speed-display')!,
+      kalmanVelEl: document.getElementById('kalman-vel')!,
       thetaDisplayEl: document.getElementById('theta-display')!,
       confidenceDisplayEl: document.getElementById('confidence-display')!,
       thetaLagEl: document.getElementById('theta-lag')!,
@@ -134,6 +141,7 @@ function main(): void {
       speed: processed.speed,
     });
 
+    const kalmanVel = dataProcessor.getKalmanVelocity();
     panelRenderer.updateInfo({
       noisyX: processed.noisyX,
       noisyY: processed.noisyY,
@@ -142,6 +150,8 @@ function main(): void {
       predX: processed.predX,
       predY: processed.predY,
       speed: processed.speed,
+      kalmanVx: kalmanVel.vx,
+      kalmanVy: kalmanVel.vy,
       thetaDeg: dirResult.smoothedTheta * 180 / Math.PI,
       confidence,
       lagDeg: dirResult.lagDeg,
@@ -235,6 +245,7 @@ function main(): void {
     mincutoff,
     beta,
     trailLength,
+    blend: parseInt(blendSlider.value, 10),
     q: kalmanQ,
     r: kalmanR,
   });

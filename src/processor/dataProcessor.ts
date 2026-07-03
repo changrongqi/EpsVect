@@ -28,6 +28,7 @@ export interface DataProcessorConfig {
   beta: number;
   kalmanQ: number;
   kalmanR: number;
+  blendRatio: number;
 }
 
 export class DataProcessor {
@@ -37,18 +38,18 @@ export class DataProcessor {
   private noiseStdDev: number;
   private kalmanQ: number;
   private kalmanR: number;
+  private blendRatio: number;
 
   private prevSmoothX = 0;
   private prevSmoothY = 0;
   private prevTime = performance.now();
   private currentSpeed = 0;
-  private prevDx = 0;
-  private prevDy = 0;
 
   constructor(config: DataProcessorConfig) {
     this.noiseStdDev = config.noiseStdDev;
     this.kalmanQ = config.kalmanQ;
     this.kalmanR = config.kalmanR;
+    this.blendRatio = config.blendRatio;
     this.filterX = createOneEuroFilter({ freq: 60, mincutoff: config.mincutoff, beta: config.beta });
     this.filterY = createOneEuroFilter({ freq: 60, mincutoff: config.mincutoff, beta: config.beta });
     this.kalman = new KalmanFilter({ dt: 16, Q: config.kalmanQ, R: config.kalmanR });
@@ -66,6 +67,8 @@ export class DataProcessor {
     const smoothY = filterCoordinate(this.filterY, noisyY);
 
     const dtSec = (now - this.prevTime) / 1000;
+    const actualDtMs = Math.max(1, now - this.prevTime);
+
     let dx = 0;
     let dy = 0;
     if (dtSec > 0.001) {
@@ -77,17 +80,17 @@ export class DataProcessor {
     this.prevSmoothY = smoothY;
     this.prevTime = now;
 
-    if (this.currentSpeed > 0.5) {
-      this.prevDx = dx;
-      this.prevDy = dy;
-    }
-
-    const actualDtMs = Math.max(1, now - this.prevTime);
     this.kalman.setDt(actualDtMs);
     this.kalman.step(smoothX, smoothY);
 
-    const predX = smoothX + this.prevDx / dtSec * PREDICTION_HORIZON_MS / 1000;
-    const predY = smoothY + this.prevDy / dtSec * PREDICTION_HORIZON_MS / 1000;
+    const vel = this.kalman.getVelocity();
+    const directVx = dtSec > 0.001 ? dx / dtSec : 0;
+    const directVy = dtSec > 0.001 ? dy / dtSec : 0;
+    // 混合 Kalman 平滑速度与瞬时速度，比例由 blendRatio 控制
+    const blendVx = vel.vx * this.blendRatio + directVx * (1 - this.blendRatio);
+    const blendVy = vel.vy * this.blendRatio + directVy * (1 - this.blendRatio);
+    const predX = smoothX + blendVx * PREDICTION_HORIZON_MS / 1000;
+    const predY = smoothY + blendVy * PREDICTION_HORIZON_MS / 1000;
 
     return {
       noisyX,
@@ -95,8 +98,8 @@ export class DataProcessor {
       smoothX,
       smoothY,
       speed: this.currentSpeed,
-      dx: this.prevDx,
-      dy: this.prevDy,
+      dx,
+      dy,
       predX,
       predY,
     };
@@ -118,23 +121,23 @@ export class DataProcessor {
 
   updateKalmanQ(value: number): void {
     this.kalmanQ = value;
-    this.kalman = new KalmanFilter({ dt: 16, Q: value, R: this.kalmanR });
+    this.kalman.setQ(value);
   }
 
   updateKalmanR(value: number): void {
     this.kalmanR = value;
-    this.kalman = new KalmanFilter({ dt: 16, Q: this.kalmanQ, R: value });
+    this.kalman.setR(value);
+  }
+
+  updateBlendRatio(value: number): void {
+    this.blendRatio = value;
   }
 
   getSpeed(): number {
     return this.currentSpeed;
   }
 
-  getDx(): number {
-    return this.prevDx;
-  }
-
-  getDy(): number {
-    return this.prevDy;
+  getKalmanVelocity(): { vx: number; vy: number } {
+    return this.kalman.getVelocity();
   }
 }

@@ -38,21 +38,13 @@ export class DirectionDetector {
     if (this.microWindow.length > MICRO_WINDOW) this.microWindow.shift();
   }
 
-  /** 从窗口做线性回归拟合方向角 */
+  /** 从窗口首尾点计算方向角，使用 Math.atan2 获取完整 [-π, π] 范围 */
   private microTheta(): number {
     const len = this.microWindow.length;
     if (len < 3) return 0;
-    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-    for (const p of this.microWindow) {
-      sumX += p.x;
-      sumY += p.y;
-      sumXY += p.x * p.y;
-      sumX2 += p.x * p.x;
-    }
-    const denom = len * sumX2 - sumX * sumX;
-    if (Math.abs(denom) < 1e-9) return 0;
-    const slope = (len * sumXY - sumX * sumY) / denom;
-    return Math.atan(slope);
+    const first = this.microWindow[0];
+    const last = this.microWindow[len - 1];
+    return Math.atan2(last.y - first.y, last.x - first.x);
   }
 
   /** 执行一步方向检测 */

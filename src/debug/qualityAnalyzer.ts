@@ -67,10 +67,11 @@ export class QualityAnalyzer {
 
       if (rawDiff > 30 && e.speed > 20) {
         let frames = 0;
-        for (let j = 0; j < Math.min(10, entries.length); j++) {
+        const startIdx = entries.indexOf(e);
+        for (let j = startIdx; j < Math.min(startIdx + 10, entries.length); j++) {
           frames++;
           const smoothedDiff = QualityAnalyzer.angleDiffDeg(
-            e.smoothedTheta * 180 / Math.PI,
+            entries[j].smoothedTheta * 180 / Math.PI,
             prevSmoothed,
           );
           if (smoothedDiff > rawDiff * 0.7) break;

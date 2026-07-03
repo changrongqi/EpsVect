@@ -20,7 +20,7 @@ export interface KalmanConfig {
 
 const DEFAULT_CONFIG: KalmanConfig = {
   dt: 16,
-  Q: 10,
+  Q: 100,
   R: 1000,
   initialP: 100, // 初始协方差足够大，速度估计能快速收敛
 };
@@ -149,6 +149,25 @@ export class KalmanFilter {
     this.dt = dtMs / 1000;
     this.A[0][2] = this.dt;
     this.A[1][3] = this.dt;
+  }
+
+  /** 更新过程噪声 Q（不重建实例，保留状态估计） */
+  setQ(value: number): void {
+    const q = value;
+    this.Q = [
+      [q, 0, 0, 0],
+      [0, q, 0, 0],
+      [0, 0, q, 0],
+      [0, 0, 0, q],
+    ];
+  }
+
+  /** 更新测量噪声 R（不重建实例，保留状态估计） */
+  setR(value: number): void {
+    this.R = [
+      [value, 0],
+      [0, value],
+    ];
   }
 
   reset(): void {

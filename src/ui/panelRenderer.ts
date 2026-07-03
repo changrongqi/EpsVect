@@ -12,6 +12,7 @@ export interface PanelRendererConfig {
   smoothCoordsEl: HTMLElement;
   predCoordsEl: HTMLElement;
   speedDisplayEl: HTMLElement;
+  kalmanVelEl: HTMLElement;
   thetaDisplayEl: HTMLElement;
   confidenceDisplayEl: HTMLElement;
   thetaLagEl: HTMLElement;
@@ -33,6 +34,8 @@ export interface PanelUpdateData {
   predX: number;
   predY: number;
   speed: number;
+  kalmanVx: number;
+  kalmanVy: number;
   thetaDeg: number;
   confidence: number;
   lagDeg: number;
@@ -95,13 +98,14 @@ export class PanelRenderer {
 
   updateInfo(data: PanelUpdateData): void {
     if (this.frozen) return;
-    const { rawCoordsEl, smoothCoordsEl, predCoordsEl, speedDisplayEl, thetaDisplayEl,
+    const { rawCoordsEl, smoothCoordsEl, predCoordsEl, speedDisplayEl, kalmanVelEl, thetaDisplayEl,
             confidenceDisplayEl, thetaLagEl, stateDisplayEl } = this.config;
 
     rawCoordsEl.textContent = `(${data.noisyX.toFixed(1)}, ${data.noisyY.toFixed(1)})`;
     smoothCoordsEl.textContent = `(${data.smoothX.toFixed(1)}, ${data.smoothY.toFixed(1)})`;
     predCoordsEl.textContent = `(${data.predX.toFixed(1)}, ${data.predY.toFixed(1)})`;
     speedDisplayEl.textContent = `${Math.round(data.speed)} px/s`;
+    kalmanVelEl.textContent = `(${data.kalmanVx.toFixed(0)}, ${data.kalmanVy.toFixed(0)}) px/s`;
     thetaDisplayEl.textContent = `${data.thetaDeg.toFixed(1)}°`;
     confidenceDisplayEl.textContent = data.confidence.toFixed(3);
     thetaLagEl.textContent = `${data.lagDeg.toFixed(1)}°`;

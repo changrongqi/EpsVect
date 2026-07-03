@@ -12,6 +12,8 @@ export interface SliderConfig {
   betaValueEl: HTMLElement;
   trailSlider: HTMLInputElement;
   trailValueEl: HTMLElement;
+  blendSlider: HTMLInputElement;
+  blendValueEl: HTMLElement;
   qSlider: HTMLInputElement;
   qValueEl: HTMLElement;
   rSlider: HTMLInputElement;
@@ -23,6 +25,7 @@ export interface SliderCallbacks {
   onMincutoffChange: (value: number) => void;
   onBetaChange: (value: number) => void;
   onTrailLengthChange: (value: number) => void;
+  onBlendChange: (value: number) => void;
   onQChange: (value: number) => void;
   onRChange: (value: number) => void;
 }
@@ -43,6 +46,7 @@ export class SliderController {
       mincutoffSlider, mincutoffValueEl,
       betaSlider, betaValueEl,
       trailSlider, trailValueEl,
+      blendSlider, blendValueEl,
       qSlider, qValueEl,
       rSlider, rValueEl,
     } = this.config;
@@ -71,6 +75,12 @@ export class SliderController {
       this.callbacks.onTrailLengthChange(value);
     });
 
+    blendSlider.addEventListener('input', () => {
+      const value = parseInt(blendSlider.value, 10);
+      blendValueEl.textContent = String(value);
+      this.callbacks.onBlendChange(value / 100);
+    });
+
     qSlider.addEventListener('input', () => {
       const value = parseInt(qSlider.value, 10);
       qValueEl.textContent = String(value);
@@ -89,6 +99,7 @@ export class SliderController {
     mincutoff: number;
     beta: number;
     trailLength: number;
+    blend: number;
     q: number;
     r: number;
   }): void {
@@ -96,6 +107,7 @@ export class SliderController {
     this.config.mincutoffValueEl.textContent = values.mincutoff.toFixed(1);
     this.config.betaValueEl.textContent = values.beta.toFixed(3);
     this.config.trailValueEl.textContent = String(values.trailLength);
+    this.config.blendValueEl.textContent = String(values.blend);
     this.config.qValueEl.textContent = String(values.q);
     this.config.rValueEl.textContent = String(values.r);
   }

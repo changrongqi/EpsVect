@@ -290,3 +290,9 @@ html, body {
   cursor: pointer;
   border: none;
 }
+
+.slider-hint {
+  font-size: 10px;
+  color: #666;
+  white-space: nowrap;
+}
