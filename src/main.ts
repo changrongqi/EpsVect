@@ -16,11 +16,13 @@ import { PanelRenderer } from './ui/panelRenderer';
 import { initRenderer, pushTrailPoint, renderFrame, setMaxTrailLength, getTrailLength, setPrediction } from './renderer/canvas';
 import { initStarryBackground } from './renderer/starry';
 import { createFpsCounter } from './util/fpsCounter';
+import { MousePipeline, PipelineResult } from './core/pipeline';
 
 const STATS_REFRESH_MS = 500;
 const KPI_REFRESH_MS = 3000;
 
 function main(): void {
+  // ── DOM 元素获取 ──
   const noiseSlider = document.getElementById('noise-slider') as HTMLInputElement;
   const mincutoffSlider = document.getElementById('mincutoff-slider') as HTMLInputElement;
   const betaSlider = document.getElementById('beta-slider') as HTMLInputElement;
@@ -37,6 +39,7 @@ function main(): void {
   const kalmanQ = parseInt(qSlider.value, 10);
   const kalmanR = parseInt(rSlider.value, 10);
 
+  // ── 模块实例化 ──
   const dataProcessor = new DataProcessor({
     noiseStdDev,
     mincutoff,
@@ -54,9 +57,19 @@ function main(): void {
   const qualityAnalyzer = new QualityAnalyzer();
   const fpsCounter = createFpsCounter();
 
+  const pipeline = new MousePipeline(
+    dataProcessor,
+    directionDetector,
+    confidenceCalculator,
+    driftDetector,
+    statsCollector,
+  );
+
+  // ── 渲染器初始化 ──
   initRenderer('#trail-canvas', trailLength);
   initStarryBackground('#starry-canvas');
 
+  // ── UI 控制器初始化 ──
   const sliderController = new SliderController(
     {
       noiseSlider,
@@ -85,6 +98,16 @@ function main(): void {
     },
   );
 
+  sliderController.setInitialValues({
+    noise: noiseStdDev,
+    mincutoff,
+    beta,
+    trailLength,
+    blend: parseInt(blendSlider.value, 10),
+    q: kalmanQ,
+    r: kalmanR,
+  });
+
   const freezeController = new FreezeController({
     infoPanel: document.getElementById('info-panel')!,
     freezeIndicatorEl: document.getElementById('freeze-indicator')!,
@@ -108,118 +131,41 @@ function main(): void {
     { historyRecorder },
   );
 
-  function onMouseMove(e: MouseEvent): void {
-    const processed = dataProcessor.process(e);
-
-    directionDetector.pushMicroWindow(processed.smoothX, processed.smoothY);
-    const dirResult = directionDetector.detect(processed.speed, processed.dx, processed.dy);
-
-    if (processed.speed >= 5) {
-      confidenceCalculator.pushTheta(dirResult.theta);
-    } else {
-      confidenceCalculator.clearHistory();
-    }
-    const confidence = confidenceCalculator.compute(processed.speed);
-
-    if (processed.speed < 5) {
-      driftDetector.push(processed.smoothX, processed.smoothY);
-    } else {
-      driftDetector.clear();
-    }
-
-    pushTrailPoint(
-      { x: processed.noisyX, y: processed.noisyY },
-      { x: processed.smoothX, y: processed.smoothY },
-    );
-
-    setPrediction({
-      fromX: processed.smoothX,
-      fromY: processed.smoothY,
-      vx: processed.vx,
-      vy: processed.vy,
-      predX: processed.predX,
-      predY: processed.predY,
-      confidence,
-      speed: processed.speed,
-    });
-
-    const kalmanVel = dataProcessor.getKalmanVelocity();
-    panelRenderer.updateInfo({
-      noisyX: processed.noisyX,
-      noisyY: processed.noisyY,
-      smoothX: processed.smoothX,
-      smoothY: processed.smoothY,
-      predX: processed.predX,
-      predY: processed.predY,
-      speed: processed.speed,
-      kalmanVx: kalmanVel.vx,
-      kalmanVy: kalmanVel.vy,
-      thetaDeg: dirResult.smoothedTheta * 180 / Math.PI,
-      confidence,
-      lagDeg: dirResult.lagDeg,
-      stateLabel: dirResult.stateLabel,
-    });
-
-    currentSpeed = processed.speed;
-    currentLag = dirResult.lagDeg;
-    currentConf = confidence;
-
-    const predError = statsCollector.record(
-      processed.speed,
-      dirResult.lagDeg,
-      confidence,
-      currentFps,
-      processed.smoothX,
-      processed.smoothY,
-      processed.predX,
-      processed.predY,
-    );
-    currentPredErr = predError;
-
-    historyRecorder.record({
-      rawX: processed.noisyX,
-      rawY: processed.noisyY,
-      smoothX: processed.smoothX,
-      smoothY: processed.smoothY,
-      predX: processed.predX,
-      predY: processed.predY,
-      vx: processed.vx,
-      vy: processed.vy,
-      speed: processed.speed,
-      theta: dirResult.theta,
-      smoothedTheta: dirResult.smoothedTheta,
-      confidence,
-      state: dirResult.stateLabel,
-      predError,
-    });
-  }
-
+  // ── 运行时状态 ──
+  let lastResult: PipelineResult | null = null;
+  let currentFps = 60;
   let lastStatsRefresh = performance.now();
   let lastKpiRefresh = performance.now();
-  let currentFps = 60;
-  let currentSpeed = 0;
-  let currentLag = 0;
-  let currentConf = 0;
-  let currentPredErr = 0;
 
+  // ── 鼠标移动处理 ──
+  function onMouseMove(e: MouseEvent): void {
+    const result = pipeline.process(e, currentFps);
+    lastResult = result;
+
+    pushTrailPoint(result.noisy, result.smooth);
+    setPrediction(result.prediction);
+    panelRenderer.updateInfo(result.panelData);
+    historyRecorder.record(result.historyEntry);
+  }
+
+  // ── 动画循环调度 ──
   function animationLoop(): void {
-    const fps = fpsCounter.tick();
-    currentFps = fps;
+    currentFps = fpsCounter.tick();
     const drift = driftDetector.compute();
 
-    panelRenderer.updateStats(fps, drift, getTrailLength());
+    panelRenderer.updateStats(currentFps, drift, getTrailLength());
 
     const now = performance.now();
 
-    if (now - lastStatsRefresh >= STATS_REFRESH_MS) {
+    if (lastResult && now - lastStatsRefresh >= STATS_REFRESH_MS) {
       lastStatsRefresh = now;
       const summary = statsCollector.summarize();
       panelRenderer.updateStatsPanel(
         summary,
-        currentSpeed,
-        currentLag,
-        currentConf,
-        currentPredErr,
+        lastResult.speed,
+        lastResult.lagDeg,
+        lastResult.confidence,
+        lastResult.predError,
         currentFps,
       );
     }
@@ -234,22 +180,13 @@ function main(): void {
     requestAnimationFrame(animationLoop);
   }
 
+  // ── 系统事件绑定 ──
   document.addEventListener('keydown', (e) => {
     if (e.key === ' ' || e.code === 'Space') {
       e.preventDefault();
       const frozen = freezeController.toggle();
       panelRenderer.setFrozen(frozen);
     }
-  });
-
-  sliderController.setInitialValues({
-    noise: noiseStdDev,
-    mincutoff,
-    beta,
-    trailLength,
-    blend: parseInt(blendSlider.value, 10),
-    q: kalmanQ,
-    r: kalmanR,
   });
 
   document.addEventListener('mousemove', onMouseMove);

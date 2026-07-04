@@ -31,7 +31,7 @@ export class QualityAnalyzer {
     const predErrorMean = this.computePredErrorMean(entries);
     const responseLatency = this.computeResponseLatency(entries);
     const stabilityStd = this.computeStabilityStd(entries);
-    const followScore = this.computeFollowScore(entries);
+    const followScore = this.computeFollowScore(directionAccuracy, predErrorMean, responseLatency, stabilityStd);
 
     return { directionAccuracy, predErrorMean, responseLatency, stabilityStd, followScore };
   }
@@ -134,16 +134,16 @@ export class QualityAnalyzer {
   }
 
   /** 跟手性评分 0~100 */
-  private computeFollowScore(entries: HistoryEntry[]): number {
-    const dirAcc = this.computeDirectionAccuracy(entries);
-    const predErr = this.computePredErrorMean(entries);
-    const latency = this.computeResponseLatency(entries);
-    const stability = this.computeStabilityStd(entries);
-
-    const dirScore = Math.min(1, Math.max(0, 1 - dirAcc / 15));
-    const predScore = Math.min(1, Math.max(0, 1 - predErr / 30));
-    const latScore = Math.min(1, Math.max(0, 1 - latency / 5));
-    const stabScore = Math.min(1, Math.max(0, 1 - stability / 2));
+  private computeFollowScore(
+    directionAccuracy: number,
+    predErrorMean: number,
+    responseLatency: number,
+    stabilityStd: number,
+  ): number {
+    const dirScore = Math.min(1, Math.max(0, 1 - directionAccuracy / 15));
+    const predScore = Math.min(1, Math.max(0, 1 - predErrorMean / 30));
+    const latScore = Math.min(1, Math.max(0, 1 - responseLatency / 5));
+    const stabScore = Math.min(1, Math.max(0, 1 - stabilityStd / 2));
 
     const total = (dirScore * 0.3 + predScore * 0.3 + latScore * 0.25 + stabScore * 0.15) * 100;
     return Math.round(Math.min(100, Math.max(0, total)));

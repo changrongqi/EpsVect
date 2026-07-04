@@ -11,25 +11,38 @@ interface Point {
 const MAX_HISTORY = 120;
 
 export class DriftDetector {
-  private history: Point[] = [];
+  private buffer: Point[] = new Array(MAX_HISTORY);
+  private writeIdx = 0;
+  private count = 0;
 
   push(x: number, y: number): void {
-    this.history.push({ x, y });
-    if (this.history.length > MAX_HISTORY) {
-      this.history.shift();
-    }
+    this.buffer[this.writeIdx] = { x, y };
+    this.writeIdx = (this.writeIdx + 1) % MAX_HISTORY;
+    if (this.count < MAX_HISTORY) this.count++;
   }
 
   clear(): void {
-    this.history = [];
+    this.writeIdx = 0;
+    this.count = 0;
   }
 
   compute(): number {
-    if (this.history.length < 2) return 0;
-    const avgX = this.history.reduce((s, p) => s + p.x, 0) / this.history.length;
-    const avgY = this.history.reduce((s, p) => s + p.y, 0) / this.history.length;
+    if (this.count < 2) return 0;
+
+    let sumX = 0, sumY = 0;
+    for (let i = 0; i < this.count; i++) {
+      const idx = (this.writeIdx - this.count + i + MAX_HISTORY) % MAX_HISTORY;
+      const p = this.buffer[idx];
+      sumX += p.x;
+      sumY += p.y;
+    }
+    const avgX = sumX / this.count;
+    const avgY = sumY / this.count;
+
     let maxDrift = 0;
-    for (const p of this.history) {
+    for (let i = 0; i < this.count; i++) {
+      const idx = (this.writeIdx - this.count + i + MAX_HISTORY) % MAX_HISTORY;
+      const p = this.buffer[idx];
       const dx = p.x - avgX;
       const dy = p.y - avgY;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -39,6 +52,7 @@ export class DriftDetector {
   }
 
   reset(): void {
-    this.history = [];
+    this.writeIdx = 0;
+    this.count = 0;
   }
 }
