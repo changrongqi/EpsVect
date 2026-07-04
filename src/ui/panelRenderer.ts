@@ -123,15 +123,23 @@ export class PanelRenderer {
     setText('stat-speed-cur', `${Math.round(speed)}`);
     setText('stat-speed-avg', `${Math.round(summary.speedAvg)}`);
     setText('stat-speed-max', `${Math.round(summary.speedMax)}`);
+    setText('stat-speed-min', `${Math.round(summary.speedMin)}`);
     setText('stat-lag-cur', `${lag.toFixed(1)}`);
     setText('stat-lag-avg', `${summary.lagAvg.toFixed(1)}`);
     setText('stat-lag-max', `${summary.lagMax.toFixed(1)}`);
+    setText('stat-lag-min', `${summary.lagMin.toFixed(1)}`);
     setText('stat-conf-cur', conf.toFixed(3));
     setText('stat-conf-avg', summary.confAvg.toFixed(3));
+    setText('stat-conf-max', summary.confMax.toFixed(3));
+    setText('stat-conf-min', summary.confMin.toFixed(3));
     setText('stat-prederr-cur', predErr.toFixed(1));
     setText('stat-prederr-avg', summary.predErrorAvg.toFixed(1));
+    setText('stat-prederr-max', summary.predErrorMax.toFixed(1));
+    setText('stat-prederr-min', summary.predErrorMin.toFixed(1));
     setText('stat-fps-cur', String(fps));
-    setText('stat-fps-min', String(summary.fpsMin));
+    setText('stat-fps-avg', `${Math.round(summary.fpsAvg)}`);
+    setText('stat-fps-max', `${summary.fpsMax}`);
+    setText('stat-fps-min', `${summary.fpsMin}`);
   }
 
   updateKPI(kpi: QualityKPI): void {

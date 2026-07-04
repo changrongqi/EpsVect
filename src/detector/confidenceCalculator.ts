@@ -50,7 +50,7 @@ export class ConfidenceCalculator {
     const stabilityFactor = Math.max(0.3, Math.min(1, 1 - (stdAngleDeg - 3) / 40));
 
     const rawConfidence = speedFactor * stabilityFactor;
-    this.smoothedConfidence = 0.3 * rawConfidence + 0.7 * this.prevConfidence;
+    this.smoothedConfidence = 0.3 * rawConfidence + 0.7 * this.smoothedConfidence;
     this.prevConfidence = this.smoothedConfidence;
 
     return this.smoothedConfidence;

@@ -143,7 +143,7 @@ export class QualityAnalyzer {
     const dirScore = Math.min(1, Math.max(0, 1 - dirAcc / 15));
     const predScore = Math.min(1, Math.max(0, 1 - predErr / 30));
     const latScore = Math.min(1, Math.max(0, 1 - latency / 5));
-    const stabScore = Math.min(1, Math.max(0, 1 - stability));
+    const stabScore = Math.min(1, Math.max(0, 1 - stability / 2));
 
     const total = (dirScore * 0.3 + predScore * 0.3 + latScore * 0.25 + stabScore * 0.15) * 100;
     return Math.round(Math.min(100, Math.max(0, total)));

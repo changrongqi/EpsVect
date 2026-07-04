@@ -68,7 +68,7 @@ export class DataProcessor {
     const smoothX = filterCoordinate(this.filterX, noisyX);
     const smoothY = filterCoordinate(this.filterY, noisyY);
 
-    const actualDtMs = Math.max(1, now - this.prevTime);
+    const actualDtMs = Math.min(200, now - this.prevTime);
     const dtSec = actualDtMs / 1000;
 
     let dx = 0;

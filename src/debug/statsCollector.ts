@@ -15,11 +15,19 @@ export interface StatsSample {
 export interface StatsSummary {
   speedAvg: number;
   speedMax: number;
+  speedMin: number;
   speedStd: number;
   lagAvg: number;
   lagMax: number;
+  lagMin: number;
   confAvg: number;
+  confMax: number;
+  confMin: number;
   predErrorAvg: number;
+  predErrorMax: number;
+  predErrorMin: number;
+  fpsAvg: number;
+  fpsMax: number;
   fpsMin: number;
 }
 
@@ -92,7 +100,9 @@ export class StatsCollector {
     const lags: number[] = [];
     const confs: number[] = [];
     const predErrs: number[] = [];
+    const fpsValues: number[] = [];
     let fpsMin = Infinity;
+    let fpsMax = 0;
 
     for (let i = 0; i < this.count; i++) {
       const idx = (this.writeIdx - 1 - i + this.buffer.length) % this.buffer.length;
@@ -104,11 +114,14 @@ export class StatsCollector {
       lags.push(s.lagDeg);
       confs.push(s.confidence);
       if (s.predError > 0) predErrs.push(s.predError);
+      if (s.fps > 0) fpsValues.push(s.fps);
       if (s.fps < fpsMin) fpsMin = s.fps;
+      if (s.fps > fpsMax) fpsMax = s.fps;
     }
 
     const avg = (arr: number[]) => (arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length);
     const max = (arr: number[]) => (arr.length === 0 ? 0 : Math.max(...arr));
+    const min = (arr: number[]) => (arr.length === 0 ? 0 : Math.min(...arr));
     const std = (arr: number[], mean: number) => {
       if (arr.length < 2) return 0;
       const sqDiffs = arr.map((v) => (v - mean) * (v - mean));
@@ -119,11 +132,19 @@ export class StatsCollector {
     return {
       speedAvg,
       speedMax: max(speeds),
+      speedMin: min(speeds),
       speedStd: std(speeds, speedAvg),
       lagAvg: avg(lags),
       lagMax: max(lags),
+      lagMin: min(lags),
       confAvg: avg(confs),
+      confMax: max(confs),
+      confMin: min(confs),
       predErrorAvg: avg(predErrs),
+      predErrorMax: max(predErrs),
+      predErrorMin: min(predErrs),
+      fpsAvg: avg(fpsValues),
+      fpsMax,
       fpsMin: fpsMin === Infinity ? 0 : fpsMin,
     };
   }

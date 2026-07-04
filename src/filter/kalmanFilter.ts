@@ -142,8 +142,7 @@ export class KalmanFilter {
   /** 获取预测位置（project后的状态，未被update修正） */
   getPredictedPosition(): { x: number; y: number } {
     if (this.predictedX) {
-      const pred = mulMatVec4(this.A, this.predictedX);
-      return { x: pred[0], y: pred[1] };
+      return { x: this.predictedX[0], y: this.predictedX[1] };
     }
     return { x: this.x[0], y: this.x[1] };
   }

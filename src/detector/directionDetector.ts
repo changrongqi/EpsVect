@@ -70,7 +70,7 @@ export class DirectionDetector {
     }
 
     if (speed >= 5) {
-      if (this.prevSpeed < 5 && speed >= 20) {
+      if (this.prevSpeed < 5) {
         this.smoothedTheta = theta;
         this.prevTheta = theta;
       }
