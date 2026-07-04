@@ -27,23 +27,32 @@ function angleDiffDeg(a: number, b: number): number {
 }
 
 export class DirectionDetector {
-  private microWindow: MicroWindowEntry[] = [];
+  private microBuffer: MicroWindowEntry[] = new Array(MICRO_WINDOW);
+  private microWriteIdx = 0;
+  private microCount = 0;
   private smoothedTheta = 0;
   private prevTheta = 0;
   private prevSpeed = 0;
 
   /** 推入微位移窗口 */
   pushMicroWindow(x: number, y: number): void {
-    this.microWindow.push({ x, y });
-    if (this.microWindow.length > MICRO_WINDOW) this.microWindow.shift();
+    this.microBuffer[this.microWriteIdx] = { x, y };
+    this.microWriteIdx = (this.microWriteIdx + 1) % MICRO_WINDOW;
+    if (this.microCount < MICRO_WINDOW) this.microCount++;
+  }
+
+  /** 获取窗口中指定索引的元素（0为最早，count-1为最新） */
+  private getMicroEntry(index: number): MicroWindowEntry {
+    const idx = (this.microWriteIdx - this.microCount + index + MICRO_WINDOW) % MICRO_WINDOW;
+    return this.microBuffer[idx];
   }
 
   /** 从窗口首尾点计算方向角，使用 Math.atan2 获取完整 [-π, π] 范围 */
   private microTheta(): number {
-    const len = this.microWindow.length;
+    const len = this.microCount;
     if (len < 3) return 0;
-    const first = this.microWindow[0];
-    const last = this.microWindow[len - 1];
+    const first = this.getMicroEntry(0);
+    const last = this.getMicroEntry(len - 1);
     return Math.atan2(last.y - first.y, last.x - first.x);
   }
 
@@ -107,7 +116,8 @@ export class DirectionDetector {
   }
 
   reset(): void {
-    this.microWindow = [];
+    this.microWriteIdx = 0;
+    this.microCount = 0;
     this.smoothedTheta = 0;
     this.prevTheta = 0;
     this.prevSpeed = 0;

@@ -5,7 +5,7 @@
 export function createFpsCounter(): { tick: () => number; reset: () => void } {
   let frameCount = 0;
   let lastTime = performance.now();
-  let currentFps = 0;
+  let currentFps = 60;
 
   function tick(): number {
     frameCount++;
