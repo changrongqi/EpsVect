@@ -1,6 +1,6 @@
 /**
  * 历史记录器
- * 环形缓冲区记录运行数据，支持 JSON 导出
+ * 环形缓冲区记录运行数据，支持 JSON/CSV 格式导出字符串
  */
 
 export interface HistoryEntry {
@@ -27,7 +27,6 @@ export class HistoryRecorder {
   private count = 0;
   private recording = true;
 
-  /** 距离上次采样的事件数（降采样） */
   private sampleCounter = 0;
   private readonly sampleRate: number;
 
@@ -65,13 +64,11 @@ export class HistoryRecorder {
     if (this.count < this.buffer.length) this.count++;
   }
 
-  /** 导出为 JSON 字符串 */
   exportJSON(): string {
     const entries = this.getAllEntries();
     return JSON.stringify(entries, null, 2);
   }
 
-  /** 导出为 CSV 字符串 */
   exportCSV(): string {
     const headers = 'timestamp,rawX,rawY,smoothX,smoothY,predX,predY,vx,vy,speed,theta,smoothedTheta,confidence,state,predError';
     const rows: string[] = [headers];
@@ -87,28 +84,6 @@ export class HistoryRecorder {
     return rows.join('\n');
   }
 
-  /** 触发文件下载 */
-  static downloadJSON(json: string, filename: string = 'epsvect-data.json'): void {
-    HistoryRecorder.download(json, filename, 'application/json');
-  }
-
-  static downloadCSV(csv: string, filename: string = 'epsvect-data.csv'): void {
-    HistoryRecorder.download(csv, filename, 'text/csv');
-  }
-
-  private static download(content: string, filename: string, mimeType: string): void {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  /** 获取所有有效记录（按时间顺序） */
   getEntries(): HistoryEntry[] {
     return this.getAllEntries();
   }

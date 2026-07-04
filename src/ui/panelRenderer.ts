@@ -6,6 +6,7 @@
 import { StatsSummary } from '../debug/statsCollector';
 import { QualityKPI } from '../debug/qualityAnalyzer';
 import { HistoryRecorder } from '../debug/historyRecorder';
+import { FileExporter } from '../debug/fileExporter';
 
 export interface PanelRendererConfig {
   rawCoordsEl: HTMLElement;
@@ -80,11 +81,11 @@ export class PanelRenderer {
     if (!this.historyRecorder) return;
 
     document.getElementById('btn-export-json')?.addEventListener('click', () => {
-      HistoryRecorder.downloadJSON(this.historyRecorder!.exportJSON());
+      FileExporter.downloadJSON(this.historyRecorder!.exportJSON());
     });
 
     document.getElementById('btn-export-csv')?.addEventListener('click', () => {
-      HistoryRecorder.downloadCSV(this.historyRecorder!.exportCSV());
+      FileExporter.downloadCSV(this.historyRecorder!.exportCSV());
     });
 
     document.getElementById('btn-clear-history')?.addEventListener('click', () => {
