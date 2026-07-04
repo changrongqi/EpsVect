@@ -92,7 +92,7 @@ export class DirectionDetector {
         } else {
           alpha = 0.9;
         }
-        this.smoothedTheta = alpha * theta + (1 - alpha) * this.prevTheta;
+        this.smoothedTheta = alpha * theta + (1 - alpha) * this.smoothedTheta;
         this.prevTheta = this.smoothedTheta;
       }
     }

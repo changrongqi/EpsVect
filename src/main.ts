@@ -196,7 +196,7 @@ function main(): void {
 
   let lastStatsRefresh = performance.now();
   let lastKpiRefresh = performance.now();
-  let currentFps = 0;
+  let currentFps = 60;
   let currentSpeed = 0;
   let currentLag = 0;
   let currentConf = 0;

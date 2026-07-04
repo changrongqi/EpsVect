@@ -98,12 +98,12 @@ export function setPrediction(data: PredictionData | null): void {
 
 export function renderFrame(): void {
   if (!state) return;
-  const { ctx, rawTrail, smoothTrail, prediction } = state;
+  const { ctx, rawTrail, smoothTrail, prediction, canvas } = state;
   const w = window.innerWidth;
   const h = window.innerHeight;
 
-  // 完全清空画布，不留任何残留
-  ctx.clearRect(0, 0, w, h);
+  // 完全清空画布，不留任何残留（使用 canvas 实际像素尺寸）
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // 绘制轨迹（逐段透明度渐变）
   drawTrailWithFade(ctx, rawTrail, RAW_COLOR, 1.0, 3.0);

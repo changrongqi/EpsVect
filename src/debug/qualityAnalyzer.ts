@@ -58,19 +58,6 @@ export class QualityAnalyzer {
     return diffs.reduce((a, b) => a + b, 0) / diffs.length;
   }
 
-  /** 平滑延迟：原始方向与平滑方向的偏差均值（度） */
-  private computeSmoothDelay(entries: HistoryEntry[]): number {
-    const diffs: number[] = [];
-    for (const e of entries) {
-      if (e.speed < 5) continue;
-      const thetaDeg = e.theta * 180 / Math.PI;
-      const smoothedDeg = e.smoothedTheta * 180 / Math.PI;
-      diffs.push(QualityAnalyzer.angleDiffDeg(thetaDeg, smoothedDeg));
-    }
-    if (diffs.length === 0) return 0;
-    return diffs.reduce((a, b) => a + b, 0) / diffs.length;
-  }
-
   /** 预测误差均值（px） */
   private computePredErrorMean(entries: HistoryEntry[]): number {
     const errors = entries.filter((e) => e.speed >= 5).map((e) => e.predError);

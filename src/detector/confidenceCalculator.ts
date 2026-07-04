@@ -47,7 +47,7 @@ export class ConfidenceCalculator {
 
     const stdAngle = circularStdDev(this.thetaHistory);
     const stdAngleDeg = stdAngle * 180 / Math.PI;
-    const stabilityFactor = Math.max(0.3, Math.min(1, 1 - (stdAngleDeg - 10) / 35));
+    const stabilityFactor = Math.max(0.3, Math.min(1, 1 - (stdAngleDeg - 3) / 40));
 
     const rawConfidence = speedFactor * stabilityFactor;
     this.smoothedConfidence = 0.3 * rawConfidence + 0.7 * this.prevConfidence;
