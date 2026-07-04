@@ -14,6 +14,7 @@ import { SliderController } from './ui/sliderController';
 import { FreezeController } from './ui/freezeController';
 import { PanelRenderer } from './ui/panelRenderer';
 import { initRenderer, pushTrailPoint, renderFrame, setMaxTrailLength, getTrailLength, setPrediction } from './renderer/canvas';
+import { initStarryBackground } from './renderer/starry';
 import { createFpsCounter } from './util/fpsCounter';
 
 const STATS_REFRESH_MS = 500;
@@ -54,6 +55,7 @@ function main(): void {
   const fpsCounter = createFpsCounter();
 
   initRenderer('#trail-canvas', trailLength);
+  initStarryBackground('#starry-canvas');
 
   const sliderController = new SliderController(
     {

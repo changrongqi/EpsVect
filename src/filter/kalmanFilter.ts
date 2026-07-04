@@ -20,8 +20,8 @@ export interface KalmanConfig {
 
 const DEFAULT_CONFIG: KalmanConfig = {
   dt: 16,
-  Q: 100,
-  R: 1000,
+  Q: 200,
+  R: 50,
   initialP: 100, // 初始协方差足够大，速度估计能快速收敛
 };
 
@@ -81,7 +81,10 @@ export class KalmanFilter {
   /** 预测步：根据上一帧状态外推当前帧 */
   project(): void {
     this.x = mulMatVec4(this.A, this.x);
-    this.P = addMat4(mulMat4(this.A, this.P, mulMat4Transpose(this.A)), this.Q);
+    const AP = mulMat4(this.A, this.P);
+    const At = transpose4(this.A);
+    const APA = mulMat4(AP, At);
+    this.P = addMat4(APA, this.Q);
   }
 
   /** 修正步：用新测量值修正预测 */
@@ -186,6 +189,16 @@ function identity4(): number[][] {
     [0, 0, 1, 0],
     [0, 0, 0, 1],
   ];
+}
+
+function transpose4(m: number[][]): number[][] {
+  const r: number[][] = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+  for (let i = 0; i < 4; i++) {
+    for (let j = 0; j < 4; j++) {
+      r[i][j] = m[j][i];
+    }
+  }
+  return r;
 }
 
 function scaleMatrix(m: number[][], s: number): number[][] {
