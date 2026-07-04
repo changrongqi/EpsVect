@@ -26,11 +26,12 @@ export class DriftDetector {
 
   compute(): number {
     if (this.history.length < 2) return 0;
-    const first = this.history[0];
+    const avgX = this.history.reduce((s, p) => s + p.x, 0) / this.history.length;
+    const avgY = this.history.reduce((s, p) => s + p.y, 0) / this.history.length;
     let maxDrift = 0;
     for (const p of this.history) {
-      const dx = p.x - first.x;
-      const dy = p.y - first.y;
+      const dx = p.x - avgX;
+      const dy = p.y - avgY;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist > maxDrift) maxDrift = dist;
     }

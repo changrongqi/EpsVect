@@ -18,6 +18,8 @@ export interface ProcessedData {
   speed: number;
   dx: number;
   dy: number;
+  vx: number;
+  vy: number;
   predX: number;
   predY: number;
 }
@@ -66,8 +68,8 @@ export class DataProcessor {
     const smoothX = filterCoordinate(this.filterX, noisyX);
     const smoothY = filterCoordinate(this.filterY, noisyY);
 
-    const dtSec = (now - this.prevTime) / 1000;
     const actualDtMs = Math.max(1, now - this.prevTime);
+    const dtSec = actualDtMs / 1000;
 
     let dx = 0;
     let dy = 0;
@@ -100,6 +102,8 @@ export class DataProcessor {
       speed: this.currentSpeed,
       dx,
       dy,
+      vx: blendVx,
+      vy: blendVy,
       predX,
       predY,
     };

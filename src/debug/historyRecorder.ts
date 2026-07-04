@@ -67,11 +67,7 @@ export class HistoryRecorder {
 
   /** 导出为 JSON 字符串 */
   exportJSON(): string {
-    const entries: HistoryEntry[] = [];
-    for (let i = 0; i < this.count; i++) {
-      const idx = (this.writeIdx - 1 - i + this.buffer.length) % this.buffer.length;
-      entries.unshift(this.buffer[idx]);
-    }
+    const entries = this.getAllEntries();
     return JSON.stringify(entries, null, 2);
   }
 
@@ -79,9 +75,8 @@ export class HistoryRecorder {
   exportCSV(): string {
     const headers = 'timestamp,rawX,rawY,smoothX,smoothY,predX,predY,vx,vy,speed,theta,smoothedTheta,confidence,state,predError';
     const rows: string[] = [headers];
-    for (let i = 0; i < this.count; i++) {
-      const idx = (this.writeIdx - 1 - i + this.buffer.length) % this.buffer.length;
-      const e = this.buffer[idx];
+    const entries = this.getAllEntries();
+    for (const e of entries) {
       rows.push([
         e.timestamp,
         e.rawX, e.rawY, e.smoothX, e.smoothY, e.predX, e.predY,
@@ -115,10 +110,14 @@ export class HistoryRecorder {
 
   /** 获取所有有效记录（按时间顺序） */
   getEntries(): HistoryEntry[] {
-    const entries: HistoryEntry[] = [];
+    return this.getAllEntries();
+  }
+
+  private getAllEntries(): HistoryEntry[] {
+    const entries: HistoryEntry[] = new Array(this.count);
     for (let i = 0; i < this.count; i++) {
-      const idx = (this.writeIdx - 1 - i + this.buffer.length) % this.buffer.length;
-      entries.unshift(this.buffer[idx]);
+      const idx = (this.writeIdx - this.count + i + this.buffer.length) % this.buffer.length;
+      entries[i] = this.buffer[idx];
     }
     return entries;
   }

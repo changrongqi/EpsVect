@@ -33,6 +33,7 @@ export class KalmanFilter {
   private I: number[][];
   private x: [number, number, number, number];
   private P: number[][];
+  private predictedX: [number, number, number, number] | null = null;
   private dt: number;
   private initialized: boolean;
 
@@ -85,6 +86,7 @@ export class KalmanFilter {
     const At = transpose4(this.A);
     const APA = mulMat4(AP, At);
     this.P = addMat4(APA, this.Q);
+    this.predictedX = [...this.x];
   }
 
   /** 修正步：用新测量值修正预测 */
@@ -137,8 +139,12 @@ export class KalmanFilter {
     };
   }
 
-  /** 获取预测位置 */
+  /** 获取预测位置（project后的状态，未被update修正） */
   getPredictedPosition(): { x: number; y: number } {
+    if (this.predictedX) {
+      const pred = mulMatVec4(this.A, this.predictedX);
+      return { x: pred[0], y: pred[1] };
+    }
     return { x: this.x[0], y: this.x[1] };
   }
 
@@ -240,18 +246,6 @@ function mulMat4(a: number[][], b: number[][], extra?: number[][]): number[][] {
     for (let i = 0; i < 4; i++) {
       for (let j = 0; j < 4; j++) {
         r[i][j] += extra[i][j];
-      }
-    }
-  }
-  return r;
-}
-
-function mulMat4Transpose(a: number[][]): number[][] {
-  const r: number[][] = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
-  for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 4; j++) {
-      for (let k = 0; k < 4; k++) {
-        r[i][j] += a[i][k] * a[j][k];
       }
     }
   }

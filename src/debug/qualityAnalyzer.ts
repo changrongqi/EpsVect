@@ -16,8 +16,10 @@ export interface QualityKPI {
 export class QualityAnalyzer {
   /** 计算两个角度差（度），处理环绕 */
   private static angleDiffDeg(a: number, b: number): number {
-    let diff = Math.abs(a - b);
-    return diff > 180 ? 360 - diff : diff;
+    let diff = a - b;
+    while (diff > 180) diff -= 360;
+    while (diff < -180) diff += 360;
+    return Math.abs(diff);
   }
 
   analyze(entries: HistoryEntry[]): QualityKPI {
@@ -34,8 +36,30 @@ export class QualityAnalyzer {
     return { directionAccuracy, predErrorMean, responseLatency, stabilityStd, followScore };
   }
 
-  /** 方向精度：匀速段内方向偏差均值（度） */
+  /** 方向精度：预测方向与实际移动方向的偏差均值（度） */
   private computeDirectionAccuracy(entries: HistoryEntry[]): number {
+    const diffs: number[] = [];
+    for (let i = 0; i < entries.length - 1; i++) {
+      const e = entries[i];
+      if (e.speed < 5) continue;
+
+      const predTheta = Math.atan2(e.vy, e.vx);
+      const predDeg = predTheta * 180 / Math.PI;
+
+      const next = entries[i + 1];
+      const actualDx = next.smoothX - e.smoothX;
+      const actualDy = next.smoothY - e.smoothY;
+      const actualTheta = Math.atan2(actualDy, actualDx);
+      const actualDeg = actualTheta * 180 / Math.PI;
+
+      diffs.push(QualityAnalyzer.angleDiffDeg(predDeg, actualDeg));
+    }
+    if (diffs.length === 0) return 0;
+    return diffs.reduce((a, b) => a + b, 0) / diffs.length;
+  }
+
+  /** 平滑延迟：原始方向与平滑方向的偏差均值（度） */
+  private computeSmoothDelay(entries: HistoryEntry[]): number {
     const diffs: number[] = [];
     for (const e of entries) {
       if (e.speed < 5) continue;
@@ -57,31 +81,32 @@ export class QualityAnalyzer {
   /** 响应延迟：方向突变后 smoothedTheta 跟上所需的平均帧数 */
   private computeResponseLatency(entries: HistoryEntry[]): number {
     const latencies: number[] = [];
-    let prevTheta = 0;
-    let prevSmoothed = 0;
+    let prevTheta = null;
 
-    for (const e of entries) {
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
       const thetaDeg = e.theta * 180 / Math.PI;
-      const smoothedDeg = e.smoothedTheta * 180 / Math.PI;
-      const rawDiff = QualityAnalyzer.angleDiffDeg(thetaDeg, prevTheta);
 
-      if (rawDiff > 30 && e.speed > 20) {
-        let frames = 0;
-        const startIdx = entries.indexOf(e);
-        for (let j = startIdx; j < Math.min(startIdx + 10, entries.length); j++) {
-          frames++;
-          const smoothedDiff = QualityAnalyzer.angleDiffDeg(
-            entries[j].smoothedTheta * 180 / Math.PI,
-            prevSmoothed,
-          );
-          if (smoothedDiff > rawDiff * 0.7) break;
-          if (frames >= 10) break;
+      if (prevTheta !== null && e.speed > 20) {
+        const rawDiff = QualityAnalyzer.angleDiffDeg(thetaDeg, prevTheta);
+
+        if (rawDiff > 30) {
+          let frames = 0;
+          const targetTheta = thetaDeg;
+          for (let j = i; j < Math.min(i + 10, entries.length); j++) {
+            frames++;
+            const smoothedDeg = entries[j].smoothedTheta * 180 / Math.PI;
+            const smoothedDiff = QualityAnalyzer.angleDiffDeg(smoothedDeg, targetTheta);
+            if (smoothedDiff < rawDiff * 0.3) break;
+            if (frames >= 10) break;
+          }
+          latencies.push(frames);
         }
-        latencies.push(frames);
       }
 
-      prevTheta = thetaDeg;
-      prevSmoothed = smoothedDeg;
+      if (e.speed > 5) {
+        prevTheta = thetaDeg;
+      }
     }
 
     if (latencies.length === 0) return 0;
@@ -90,13 +115,35 @@ export class QualityAnalyzer {
 
   /** 静止稳定性：静止段滤波坐标标准差（px） */
   private computeStabilityStd(entries: HistoryEntry[]): number {
-    const still = entries.filter((e) => e.speed < 5);
-    if (still.length < 2) return 0;
+    const stillSegments: HistoryEntry[][] = [];
+    let currentSegment: HistoryEntry[] = [];
 
-    const avgX = still.reduce((s, e) => s + e.smoothX, 0) / still.length;
-    const avgY = still.reduce((s, e) => s + e.smoothY, 0) / still.length;
-    const variances = still.map((e) => (e.smoothX - avgX) ** 2 + (e.smoothY - avgY) ** 2);
-    return Math.sqrt(variances.reduce((a, b) => a + b, 0) / still.length);
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      if (e.speed < 5) {
+        currentSegment.push(e);
+      } else {
+        if (currentSegment.length >= 30) {
+          stillSegments.push(currentSegment);
+        }
+        currentSegment = [];
+      }
+    }
+    if (currentSegment.length >= 30) {
+      stillSegments.push(currentSegment);
+    }
+
+    if (stillSegments.length === 0) return 0;
+
+    const totalVariance = stillSegments.reduce((sum, seg) => {
+      const avgX = seg.reduce((s, e) => s + e.smoothX, 0) / seg.length;
+      const avgY = seg.reduce((s, e) => s + e.smoothY, 0) / seg.length;
+      const variance = seg.reduce((v, e) => v + (e.smoothX - avgX) ** 2 + (e.smoothY - avgY) ** 2, 0);
+      return sum + variance;
+    }, 0);
+
+    const totalCount = stillSegments.reduce((sum, seg) => sum + seg.length, 0);
+    return Math.sqrt(totalVariance / totalCount);
   }
 
   /** 跟手性评分 0~100 */
@@ -106,13 +153,12 @@ export class QualityAnalyzer {
     const latency = this.computeResponseLatency(entries);
     const stability = this.computeStabilityStd(entries);
 
-    // 各指标标准化到 0~1（越低越好）
-    const dirScore = Math.max(0, 1 - dirAcc / 15);
-    const predScore = Math.max(0, 1 - predErr / 30);
-    const latScore = Math.max(0, 1 - latency / 5);
-    const stabScore = Math.max(0, 1 - stability / 1);
+    const dirScore = Math.min(1, Math.max(0, 1 - dirAcc / 15));
+    const predScore = Math.min(1, Math.max(0, 1 - predErr / 30));
+    const latScore = Math.min(1, Math.max(0, 1 - latency / 5));
+    const stabScore = Math.min(1, Math.max(0, 1 - stability));
 
     const total = (dirScore * 0.3 + predScore * 0.3 + latScore * 0.25 + stabScore * 0.15) * 100;
-    return Math.round(Math.min(100, total));
+    return Math.round(Math.min(100, Math.max(0, total)));
   }
 }

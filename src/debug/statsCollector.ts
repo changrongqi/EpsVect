@@ -29,10 +29,10 @@ export class StatsCollector {
   private writeIdx = 0;
   private count = 0;
 
-  /** 缓存上一帧的预测坐标，用于计算预测误差 */
-  private prevPredX = 0;
-  private prevPredY = 0;
-  private hasPrevPred = false;
+  /** 缓存上一帧的平滑坐标，用于计算预测误差 */
+  private prevSmoothX = 0;
+  private prevSmoothY = 0;
+  private hasPrevSmooth = false;
 
   constructor(windowMs: number = 1000, capacity: number = 600) {
     this.windowMs = windowMs;
@@ -51,15 +51,22 @@ export class StatsCollector {
     predY: number,
   ): number {
     let predError = 0;
-    if (this.hasPrevPred && speed >= 5) {
-      const dx = this.prevPredX - smoothX;
-      const dy = this.prevPredY - smoothY;
+    if (this.hasPrevSmooth && speed >= 5) {
+      const actualDx = smoothX - this.prevSmoothX;
+      const actualDy = smoothY - this.prevSmoothY;
+      const predDx = predX - smoothX;
+      const predDy = predY - smoothY;
+      const timeRatio = 16 / 100;
+      const expectedDx = predDx * timeRatio;
+      const expectedDy = predDy * timeRatio;
+      const dx = actualDx - expectedDx;
+      const dy = actualDy - expectedDy;
       predError = Math.sqrt(dx * dx + dy * dy);
     }
 
-    this.prevPredX = predX;
-    this.prevPredY = predY;
-    this.hasPrevPred = true;
+    this.prevSmoothX = smoothX;
+    this.prevSmoothY = smoothY;
+    this.hasPrevSmooth = true;
 
     const sample: StatsSample = {
       time: performance.now(),
@@ -90,6 +97,7 @@ export class StatsCollector {
     for (let i = 0; i < this.count; i++) {
       const idx = (this.writeIdx - 1 - i + this.buffer.length) % this.buffer.length;
       const s = this.buffer[idx];
+      if (!s) break;
       if (s.time < cutoff) break;
 
       speeds.push(s.speed);
