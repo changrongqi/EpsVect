@@ -232,19 +232,12 @@ function subMat4(a: number[][], b: number[][]): number[][] {
   return r;
 }
 
-function mulMat4(a: number[][], b: number[][], extra?: number[][]): number[][] {
+function mulMat4(a: number[][], b: number[][]): number[][] {
   const r: number[][] = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
   for (let i = 0; i < 4; i++) {
     for (let j = 0; j < 4; j++) {
       for (let k = 0; k < 4; k++) {
         r[i][j] += a[i][k] * b[k][j];
-      }
-    }
-  }
-  if (extra) {
-    for (let i = 0; i < 4; i++) {
-      for (let j = 0; j < 4; j++) {
-        r[i][j] += extra[i][j];
       }
     }
   }

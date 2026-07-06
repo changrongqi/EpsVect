@@ -275,7 +275,8 @@ function main(): void {
     }
 
     // ── 倾向引擎 + 双向导航 ──
-    const dt = (now - lastTendencyTime) / 1000;
+    // 限制 dt 防止后台标签返回时倾向值突跳
+    const dt = Math.min(0.1, (now - lastTendencyTime) / 1000);
     lastTendencyTime = now;
 
     if (lastResult && isHome) {

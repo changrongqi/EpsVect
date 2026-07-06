@@ -181,7 +181,7 @@ export function renderFrame(): void {
   if (!state) return;
   const { ctx, rawTrail, smoothTrail, prediction, canvas, homeMode, portals } = state;
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
   if (homeMode) {
     // 主页模式：仅渲染入口光门，无轨迹/鼠标/箭头

@@ -31,7 +31,6 @@ export class DirectionDetector {
   private microWriteIdx = 0;
   private microCount = 0;
   private smoothedTheta = 0;
-  private prevTheta = 0;
   private prevSpeed = 0;
 
   /** 推入微位移窗口 */
@@ -81,7 +80,6 @@ export class DirectionDetector {
     if (speed >= 5) {
       if (this.prevSpeed < 5) {
         this.smoothedTheta = theta;
-        this.prevTheta = theta;
       }
 
       const thetaDeg = theta * 180 / Math.PI;
@@ -90,7 +88,6 @@ export class DirectionDetector {
 
       if (diff > 30 && speed > 20) {
         this.smoothedTheta = theta;
-        this.prevTheta = theta;
         stateLabel = 'turning';
       } else {
         let alpha: number;
@@ -102,7 +99,6 @@ export class DirectionDetector {
           alpha = 0.9;
         }
         this.smoothedTheta = alpha * theta + (1 - alpha) * this.smoothedTheta;
-        this.prevTheta = this.smoothedTheta;
       }
     }
 
@@ -119,7 +115,6 @@ export class DirectionDetector {
     this.microWriteIdx = 0;
     this.microCount = 0;
     this.smoothedTheta = 0;
-    this.prevTheta = 0;
     this.prevSpeed = 0;
   }
 }
