@@ -26,13 +26,32 @@ interface TrailBuffer {
   count: number;
 }
 
+/** 入口光门数据 */
+export interface PortalData {
+  /** 入口屏幕坐标 */
+  x: number;
+  y: number;
+  /** 倾向值 [0, 1] */
+  tendency: number;
+  /** 入口标签 */
+  label: string;
+  /** 入口角度 */
+  angle: number;
+}
+
 interface RendererState {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   rawTrail: TrailBuffer;
   smoothTrail: TrailBuffer;
   maxTrailLength: number;
+  /** 主页模式前保存的用户拖尾长度，切换回来时恢复 */
+  savedTrailLength: number;
   prediction: PredictionData | null;
+  /** 入口光门数据 */
+  portals: PortalData[];
+  /** true=主页模式（仅光门，无轨迹/鼠标/箭头） */
+  homeMode: boolean;
 }
 
 const RAW_COLOR = { r: 255, g: 90, b: 90 };
@@ -82,7 +101,10 @@ export function initRenderer(
     rawTrail: createTrailBuffer(maxTrailLength),
     smoothTrail: createTrailBuffer(maxTrailLength),
     maxTrailLength,
+    savedTrailLength: maxTrailLength,
     prediction: null,
+    portals: [],
+    homeMode: true,
   };
   return ctx;
 }
@@ -122,6 +144,10 @@ export function setMaxTrailLength(length: number): void {
     state.rawTrail = newRaw;
     state.smoothTrail = newSmooth;
     state.maxTrailLength = length;
+    // 非主页模式下滑块调整需同步保存，以便切回主页后能恢复
+    if (!state.homeMode) {
+      state.savedTrailLength = length;
+    }
   }
 }
 
@@ -134,14 +160,38 @@ export function setPrediction(data: PredictionData | null): void {
   if (state) state.prediction = data;
 }
 
+export function setPortals(portals: PortalData[]): void {
+  if (state) state.portals = portals;
+}
+
+export function setHomeMode(enabled: boolean): void {
+  if (!state) return;
+  state.homeMode = enabled;
+  if (enabled) {
+    // 主页模式：先保存当前拖尾长度，再限制为短轨迹
+    state.savedTrailLength = state.maxTrailLength;
+    setMaxTrailLength(15);
+  } else {
+    // 算法测试模式：恢复用户之前设置的拖尾长度
+    setMaxTrailLength(state.savedTrailLength);
+  }
+}
+
 export function renderFrame(): void {
   if (!state) return;
-  const { ctx, rawTrail, smoothTrail, prediction, canvas } = state;
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const { ctx, rawTrail, smoothTrail, prediction, canvas, homeMode, portals } = state;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  if (homeMode) {
+    // 主页模式：仅渲染入口光门，无轨迹/鼠标/箭头
+    for (const portal of portals) {
+      drawPortal(ctx, portal);
+    }
+    return;
+  }
+
+  // 算法测试模式：完整渲染
   drawTrailWithFade(ctx, rawTrail, RAW_COLOR, 1.0, 3.0);
   drawTrailWithFade(ctx, smoothTrail, SMOOTH_COLOR, 1.5, 4.0);
 
@@ -152,6 +202,63 @@ export function renderFrame(): void {
 
   drawCursor(ctx, rawTrail, RAW_COLOR);
   drawCursor(ctx, smoothTrail, SMOOTH_COLOR);
+}
+
+/** 绘制入口光门：从模糊光晕逐渐放大变清晰 */
+function drawPortal(ctx: CanvasRenderingContext2D, portal: PortalData): void {
+  const t = portal.tendency;
+  if (t < 0.01) return;
+
+  // 光门半径随倾向增长
+  const baseRadius = 12;
+  const maxRadius = 200;
+  const radius = baseRadius + t * (maxRadius - baseRadius);
+
+  // 透明度随倾向增长
+  const alpha = 0.15 + t * 0.6;
+
+  // 色温：低倾向时暖色，高倾向时冷色（蓝移）
+  const r = Math.round(255 * (1 - t * 0.6));
+  const g = Math.round(200 * (1 - t * 0.3) + 100 * t);
+  const b = Math.round(150 * (1 - t) + 255 * t);
+
+  ctx.save();
+
+  // 外层光晕
+  const gradient = ctx.createRadialGradient(portal.x, portal.y, radius * 0.1, portal.x, portal.y, radius);
+  gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+  gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, ${alpha * 0.5})`);
+  gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+
+  ctx.globalCompositeOperation = 'screen';
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(portal.x, portal.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 核心亮点
+  if (t > 0.2) {
+    const coreAlpha = (t - 0.2) * 0.8;
+    ctx.globalAlpha = coreAlpha;
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.beginPath();
+    ctx.arc(portal.x, portal.y, radius * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+
+  // 标签：只在倾向较高时显示
+  if (t > 0.35) {
+    ctx.save();
+    ctx.globalAlpha = (t - 0.35) / 0.65;
+    ctx.fillStyle = '#e0e8ff';
+    ctx.font = `${12 + t * 16}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(portal.label, portal.x, portal.y + radius + 12);
+    ctx.restore();
+  }
 }
 
 function drawTrailWithFade(

@@ -148,3 +148,6 @@ build/
 Thumbs.db
 *.tmp
 test_data/
+
+# 本地设计方案文档
+WebPageDesignProposal.md

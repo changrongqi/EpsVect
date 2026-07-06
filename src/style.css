@@ -296,3 +296,145 @@ html, body {
   color: #666;
   white-space: nowrap;
 }
+
+/* ===== 视图系统 ===== */
+.view {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 5;
+}
+
+.view.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ===== 主页视图 ===== */
+#home-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: none;
+}
+
+.home-center {
+  text-align: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.home-title {
+  font-size: 96px;
+  font-weight: 200;
+  letter-spacing: 8px;
+  color: #e0e8ff;
+  text-shadow:
+    0 0 20px rgba(100, 180, 255, 0.4),
+    0 0 40px rgba(100, 180, 255, 0.2);
+  margin-bottom: 12px;
+  animation: titlePulse 4s ease-in-out infinite;
+}
+
+.home-subtitle {
+  font-size: 14px;
+  color: #6688aa;
+  letter-spacing: 4px;
+  font-weight: 300;
+}
+
+@keyframes titlePulse {
+  0%, 100% { text-shadow: 0 0 20px rgba(100, 180, 255, 0.4), 0 0 40px rgba(100, 180, 255, 0.2); }
+  50% { text-shadow: 0 0 30px rgba(100, 180, 255, 0.6), 0 0 60px rgba(100, 180, 255, 0.3); }
+}
+
+/* 入口光门（canvas 渲染，HTML 元素仅做点击热区） */
+.home-entries {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.home-entry {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  pointer-events: auto;
+  /* 透明热区：canvas 渲染光门 */
+  opacity: 0;
+  /* 放射布局：根据 --entry-angle 计算位置 */
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--entry-angle))
+    translateY(-260px)
+    rotate(calc(var(--entry-angle) * -1));
+  transition: all 0.2s ease;
+  width: 60px;
+  height: 60px;
+}
+
+.home-entry .entry-icon {
+  display: none;
+}
+
+.home-entry .entry-label {
+  display: none;
+}
+
+.home-entry:hover .entry-icon {
+  display: none;
+}
+
+.home-entry:hover .entry-label {
+  display: none;
+}
+
+.home-entry-disabled {
+  cursor: default;
+  opacity: 0;
+}
+
+.home-entry-disabled:hover .entry-icon {
+  display: none;
+}
+
+.home-entry-disabled:hover .entry-label {
+  display: none;
+}
+
+/* ===== 返回按钮 ===== */
+.back-btn {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #aaa;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 8px 14px;
+  cursor: pointer;
+  z-index: 20;
+  backdrop-filter: blur(8px);
+  transition: all 0.15s;
+}
+
+.back-btn:hover {
+  background: rgba(79, 195, 247, 0.15);
+  border-color: rgba(79, 195, 247, 0.3);
+  color: #4fc3f7;
+}
+
+/* 算法测试视图：面板样式继承已有样式，仅调整 z-index */
+#algo-test-view.active #info-panel,
+#algo-test-view.active #control-panel {
+  z-index: 15;
+}

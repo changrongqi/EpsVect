@@ -10,195 +10,231 @@
     <canvas id="starry-canvas"></canvas>
     <canvas id="trail-canvas"></canvas>
 
-    <!-- 信息面板 -->
-    <div id="info-panel">
-      <!-- 实时数据区块 -->
-      <div class="panel-section" id="realtime-section">
-        <div class="panel-header" data-target="realtime-body">
-          <span id="freeze-indicator">实时</span>
-          <span class="collapse-arrow">▼</span>
-        </div>
-        <div class="panel-body" id="realtime-body">
-          <div class="info-row">
-            <span class="label">原始坐标</span>
-            <span id="raw-coords">(0, 0)</span>
-          </div>
-          <div class="info-row">
-            <span class="label">滤波坐标</span>
-            <span id="smooth-coords">(0, 0)</span>
-          </div>
-          <div class="info-row">
-            <span class="label">瞬时速度</span>
-            <span id="speed-display">0 px/s</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Kalman速度</span>
-            <span id="kalman-vel">(0, 0) px/s</span>
-          </div>
-          <div class="info-row">
-            <span class="label">预测坐标</span>
-            <span id="pred-coords">(0, 0)</span>
-          </div>
-          <div class="info-row">
-            <span class="label">方向角</span>
-            <span id="theta-display">0°</span>
-          </div>
-          <div class="info-row">
-            <span class="label">置信度</span>
-            <span id="confidence-display">0.00</span>
-          </div>
-          <div class="info-row">
-            <span class="label">方向延迟</span>
-            <span id="theta-lag">0°</span>
-          </div>
-          <div class="info-row">
-            <span class="label">检测状态</span>
-            <span id="state-display">静止</span>
-          </div>
-          <div class="info-row">
-            <span class="label">静止漂移</span>
-            <span id="drift-display">0 px</span>
-          </div>
-          <div class="info-row">
-            <span class="label">轨迹点数</span>
-            <span id="trail-length">0</span>
-          </div>
-          <div class="info-row">
-            <span class="label">FPS</span>
-            <span id="fps-display">0</span>
-          </div>
-        </div>
+    <!-- 主页视图 -->
+    <div id="home-view" class="view">
+      <div class="home-center">
+        <h1 class="home-title">EpsVect</h1>
+        <p class="home-subtitle">从极小的向量变化中读懂方向</p>
       </div>
 
-      <!-- 统计分析区块 -->
-      <div class="panel-section" id="stats-section">
-        <div class="panel-header" data-target="stats-body">
-          <span>统计分析</span>
-          <span class="collapse-arrow">▼</span>
+      <div class="home-entries">
+        <div class="home-entry" data-view="algo-test" style="--entry-angle: 0deg;">
+          <span class="entry-icon">◈</span>
+          <span class="entry-label">算法测试</span>
         </div>
-        <div class="panel-body" id="stats-body">
-          <div class="stat-table">
-            <div class="stat-header">
-              <span class="stat-label">指标</span><span class="stat-val">当前</span><span class="stat-val">平均</span><span class="stat-val">最大</span><span class="stat-val">最小</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">速度 (px/s)</span>
-              <span id="stat-speed-cur" class="stat-val">0</span>
-              <span id="stat-speed-avg" class="stat-val">0</span>
-              <span id="stat-speed-max" class="stat-val">0</span>
-              <span id="stat-speed-min" class="stat-val">0</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">方向延迟 (°)</span>
-              <span id="stat-lag-cur" class="stat-val">0</span>
-              <span id="stat-lag-avg" class="stat-val">0</span>
-              <span id="stat-lag-max" class="stat-val">0</span>
-              <span id="stat-lag-min" class="stat-val">0</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">置信度</span>
-              <span id="stat-conf-cur" class="stat-val">0</span>
-              <span id="stat-conf-avg" class="stat-val">0</span>
-              <span id="stat-conf-max" class="stat-val">0</span>
-              <span id="stat-conf-min" class="stat-val">0</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">预测误差 (px)</span>
-              <span id="stat-prederr-cur" class="stat-val">0</span>
-              <span id="stat-prederr-avg" class="stat-val">0</span>
-              <span id="stat-prederr-max" class="stat-val">0</span>
-              <span id="stat-prederr-min" class="stat-val">0</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">FPS</span>
-              <span id="stat-fps-cur" class="stat-val">0</span>
-              <span id="stat-fps-avg" class="stat-val">0</span>
-              <span id="stat-fps-max" class="stat-val">0</span>
-              <span id="stat-fps-min" class="stat-val">0</span>
-            </div>
-          </div>
-
-          <!-- 算法质量 KPI -->
-          <div class="kpi-section">
-            <div class="kpi-title">算法质量</div>
-            <div class="kpi-grid">
-              <div class="kpi-item">
-                <span class="kpi-label">方向精度</span>
-                <span id="kpi-accuracy" class="kpi-value">0°</span>
-              </div>
-              <div class="kpi-item">
-                <span class="kpi-label">预测误差</span>
-                <span id="kpi-prederr" class="kpi-value">0 px</span>
-              </div>
-              <div class="kpi-item">
-                <span class="kpi-label">响应延迟</span>
-                <span id="kpi-latency" class="kpi-value">0 帧</span>
-              </div>
-              <div class="kpi-item">
-                <span class="kpi-label">静止稳定性</span>
-                <span id="kpi-stability" class="kpi-value">0 px</span>
-              </div>
-              <div class="kpi-item kpi-score">
-                <span class="kpi-label">跟手性评分</span>
-                <span id="kpi-score" class="kpi-value">0</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 操作按钮 -->
-          <div class="action-buttons">
-            <button id="btn-export-json" class="action-btn">导出 JSON</button>
-            <button id="btn-export-csv" class="action-btn">导出 CSV</button>
-            <button id="btn-clear-history" class="action-btn">清除记录</button>
-          </div>
+        <div class="home-entry home-entry-disabled" style="--entry-angle: 60deg;">
+          <span class="entry-icon">◇</span>
+          <span class="entry-label">即将推出</span>
+        </div>
+        <div class="home-entry home-entry-disabled" style="--entry-angle: 120deg;">
+          <span class="entry-icon">◇</span>
+          <span class="entry-label">即将推出</span>
+        </div>
+        <div class="home-entry home-entry-disabled" style="--entry-angle: 180deg;">
+          <span class="entry-icon">◇</span>
+          <span class="entry-label">即将推出</span>
+        </div>
+        <div class="home-entry home-entry-disabled" style="--entry-angle: 240deg;">
+          <span class="entry-icon">◇</span>
+          <span class="entry-label">即将推出</span>
+        </div>
+        <div class="home-entry home-entry-disabled" style="--entry-angle: 300deg;">
+          <span class="entry-icon">◇</span>
+          <span class="entry-label">即将推出</span>
         </div>
       </div>
     </div>
 
-    <!-- 调参面板 -->
-    <div id="control-panel">
-      <div class="control-group">
-        <label for="noise-slider">
-          噪声强度 <span id="noise-value">5.0</span> px
-        </label>
-        <input type="range" id="noise-slider" min="0" max="20" value="5" step="0.5" />
+    <!-- 算法测试视图 -->
+    <div id="algo-test-view" class="view">
+      <button id="back-btn" class="back-btn">← 返回主页</button>
+
+      <!-- 信息面板 -->
+      <div id="info-panel">
+        <div class="panel-section" id="realtime-section">
+          <div class="panel-header" data-target="realtime-body">
+            <span id="freeze-indicator">实时</span>
+            <span class="collapse-arrow">▼</span>
+          </div>
+          <div class="panel-body" id="realtime-body">
+            <div class="info-row">
+              <span class="label">原始坐标</span>
+              <span id="raw-coords">(0, 0)</span>
+            </div>
+            <div class="info-row">
+              <span class="label">滤波坐标</span>
+              <span id="smooth-coords">(0, 0)</span>
+            </div>
+            <div class="info-row">
+              <span class="label">瞬时速度</span>
+              <span id="speed-display">0 px/s</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Kalman速度</span>
+              <span id="kalman-vel">(0, 0) px/s</span>
+            </div>
+            <div class="info-row">
+              <span class="label">预测坐标</span>
+              <span id="pred-coords">(0, 0)</span>
+            </div>
+            <div class="info-row">
+              <span class="label">方向角</span>
+              <span id="theta-display">0°</span>
+            </div>
+            <div class="info-row">
+              <span class="label">置信度</span>
+              <span id="confidence-display">0.00</span>
+            </div>
+            <div class="info-row">
+              <span class="label">方向延迟</span>
+              <span id="theta-lag">0°</span>
+            </div>
+            <div class="info-row">
+              <span class="label">检测状态</span>
+              <span id="state-display">静止</span>
+            </div>
+            <div class="info-row">
+              <span class="label">静止漂移</span>
+              <span id="drift-display">0 px</span>
+            </div>
+            <div class="info-row">
+              <span class="label">轨迹点数</span>
+              <span id="trail-length">0</span>
+            </div>
+            <div class="info-row">
+              <span class="label">FPS</span>
+              <span id="fps-display">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section" id="stats-section">
+          <div class="panel-header" data-target="stats-body">
+            <span>统计分析</span>
+            <span class="collapse-arrow">▼</span>
+          </div>
+          <div class="panel-body" id="stats-body">
+            <div class="stat-table">
+              <div class="stat-header">
+                <span class="stat-label">指标</span><span class="stat-val">当前</span><span class="stat-val">平均</span><span class="stat-val">最大</span><span class="stat-val">最小</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">速度 (px/s)</span>
+                <span id="stat-speed-cur" class="stat-val">0</span>
+                <span id="stat-speed-avg" class="stat-val">0</span>
+                <span id="stat-speed-max" class="stat-val">0</span>
+                <span id="stat-speed-min" class="stat-val">0</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">方向延迟 (°)</span>
+                <span id="stat-lag-cur" class="stat-val">0</span>
+                <span id="stat-lag-avg" class="stat-val">0</span>
+                <span id="stat-lag-max" class="stat-val">0</span>
+                <span id="stat-lag-min" class="stat-val">0</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">置信度</span>
+                <span id="stat-conf-cur" class="stat-val">0</span>
+                <span id="stat-conf-avg" class="stat-val">0</span>
+                <span id="stat-conf-max" class="stat-val">0</span>
+                <span id="stat-conf-min" class="stat-val">0</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">预测误差 (px)</span>
+                <span id="stat-prederr-cur" class="stat-val">0</span>
+                <span id="stat-prederr-avg" class="stat-val">0</span>
+                <span id="stat-prederr-max" class="stat-val">0</span>
+                <span id="stat-prederr-min" class="stat-val">0</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">FPS</span>
+                <span id="stat-fps-cur" class="stat-val">0</span>
+                <span id="stat-fps-avg" class="stat-val">0</span>
+                <span id="stat-fps-max" class="stat-val">0</span>
+                <span id="stat-fps-min" class="stat-val">0</span>
+              </div>
+            </div>
+
+            <div class="kpi-section">
+              <div class="kpi-title">算法质量</div>
+              <div class="kpi-grid">
+                <div class="kpi-item">
+                  <span class="kpi-label">方向精度</span>
+                  <span id="kpi-accuracy" class="kpi-value">0°</span>
+                </div>
+                <div class="kpi-item">
+                  <span class="kpi-label">预测误差</span>
+                  <span id="kpi-prederr" class="kpi-value">0 px</span>
+                </div>
+                <div class="kpi-item">
+                  <span class="kpi-label">响应延迟</span>
+                  <span id="kpi-latency" class="kpi-value">0 帧</span>
+                </div>
+                <div class="kpi-item">
+                  <span class="kpi-label">静止稳定性</span>
+                  <span id="kpi-stability" class="kpi-value">0 px</span>
+                </div>
+                <div class="kpi-item kpi-score">
+                  <span class="kpi-label">跟手性评分</span>
+                  <span id="kpi-score" class="kpi-value">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="action-buttons">
+              <button id="btn-export-json" class="action-btn">导出 JSON</button>
+              <button id="btn-export-csv" class="action-btn">导出 CSV</button>
+              <button id="btn-clear-history" class="action-btn">清除记录</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="control-group">
-        <label for="mincutoff-slider">
-          mincutoff <span id="mincutoff-value">1.0</span>
-        </label>
-        <input type="range" id="mincutoff-slider" min="0.1" max="10" value="1.0" step="0.1" />
-      </div>
-      <div class="control-group">
-        <label for="beta-slider">
-          beta <span id="beta-value">0.007</span>
-        </label>
-        <input type="range" id="beta-slider" min="0.001" max="0.1" value="0.007" step="0.001" />
-      </div>
-      <div class="control-group">
-        <label for="trail-slider">
-          拖尾长度 <span id="trail-value">100</span> 点
-        </label>
-        <input type="range" id="trail-slider" min="30" max="200" value="100" step="5" />
-      </div>
-      <div class="control-group">
-        <label for="blend-slider">
-          混合比例 <span id="blend-value">50</span>%
-        </label>
-        <input type="range" id="blend-slider" min="0" max="100" value="50" step="5" />
-        <div class="slider-hint">0%=纯瞬时速度 | 100%=纯Kalman</div>
-      </div>
-      <div class="control-group">
-        <label for="q-slider">
-          Kalman Q <span id="q-value">300</span>
-        </label>
-        <input type="range" id="q-slider" min="1" max="500" value="300" step="1" />
-      </div>
-      <div class="control-group">
-        <label for="r-slider">
-          Kalman R <span id="r-value">30</span>
-        </label>
-        <input type="range" id="r-slider" min="10" max="5000" value="30" step="10" />
+
+      <!-- 调参面板 -->
+      <div id="control-panel">
+        <div class="control-group">
+          <label for="noise-slider">
+            噪声强度 <span id="noise-value">5.0</span> px
+          </label>
+          <input type="range" id="noise-slider" min="0" max="20" value="5" step="0.5" />
+        </div>
+        <div class="control-group">
+          <label for="mincutoff-slider">
+            mincutoff <span id="mincutoff-value">1.0</span>
+          </label>
+          <input type="range" id="mincutoff-slider" min="0.1" max="10" value="1.0" step="0.1" />
+        </div>
+        <div class="control-group">
+          <label for="beta-slider">
+            beta <span id="beta-value">0.007</span>
+          </label>
+          <input type="range" id="beta-slider" min="0.001" max="0.1" value="0.007" step="0.001" />
+        </div>
+        <div class="control-group">
+          <label for="trail-slider">
+            拖尾长度 <span id="trail-value">100</span> 点
+          </label>
+          <input type="range" id="trail-slider" min="30" max="200" value="100" step="5" />
+        </div>
+        <div class="control-group">
+          <label for="blend-slider">
+            混合比例 <span id="blend-value">50</span>%
+          </label>
+          <input type="range" id="blend-slider" min="0" max="100" value="50" step="5" />
+          <div class="slider-hint">0%=纯瞬时速度 | 100%=纯Kalman</div>
+        </div>
+        <div class="control-group">
+          <label for="q-slider">
+            Kalman Q <span id="q-value">300</span>
+          </label>
+          <input type="range" id="q-slider" min="1" max="500" value="300" step="1" />
+        </div>
+        <div class="control-group">
+          <label for="r-slider">
+            Kalman R <span id="r-value">30</span>
+          </label>
+          <input type="range" id="r-slider" min="10" max="5000" value="30" step="10" />
+        </div>
       </div>
     </div>
 

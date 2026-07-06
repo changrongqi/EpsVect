@@ -13,13 +13,30 @@ import { QualityAnalyzer } from './debug/qualityAnalyzer';
 import { SliderController } from './ui/sliderController';
 import { FreezeController } from './ui/freezeController';
 import { PanelRenderer } from './ui/panelRenderer';
-import { initRenderer, pushTrailPoint, renderFrame, setMaxTrailLength, getTrailLength, setPrediction } from './renderer/canvas';
-import { initStarryBackground } from './renderer/starry';
+import { initRenderer, pushTrailPoint, renderFrame, setMaxTrailLength, getTrailLength, setPrediction, setHomeMode, setPortals, PortalData } from './renderer/canvas';
+import { initStarryBackground, setStarryParallax, setStarryTendency, setStarryHomeMode } from './renderer/starry';
 import { createFpsCounter } from './util/fpsCounter';
 import { MousePipeline, PipelineResult } from './core/pipeline';
+import { ViewSwitcher, ViewName } from './ui/viewSwitcher';
+import { TendencyEngine } from './core/tendency';
 
 const STATS_REFRESH_MS = 500;
 const KPI_REFRESH_MS = 3000;
+/** 倾向阈值：达到此值自动从主页进入子视图（值越高需要越坚定的方向） */
+const TENDENCY_THRESHOLD = 0.92;
+
+/** 入口配置 */
+interface EntryConfig {
+  id: string;
+  angle: number;        // 弧度，从中心出发的角度
+  label: string;
+  dataView: ViewName;
+}
+
+/** 当前活跃的入口 */
+const ENTRY_CONFIGS: EntryConfig[] = [
+  { id: 'algo-test', angle: 0, label: '算法测试', dataView: 'algo-test' },
+];
 
 function main(): void {
   // ── DOM 元素获取 ──
@@ -32,6 +49,7 @@ function main(): void {
   const rSlider = document.getElementById('r-slider') as HTMLInputElement;
 
   const noiseStdDev = parseFloat(noiseSlider.value);
+  let savedNoiseStdDev = noiseStdDev;  // 主页模式切回时恢复用
   const mincutoff = parseFloat(mincutoffSlider.value);
   const beta = parseFloat(betaSlider.value);
   const trailLength = parseInt(trailSlider.value, 10);
@@ -65,9 +83,37 @@ function main(): void {
     statsCollector,
   );
 
+  // ── 倾向引擎 ──
+  const tendencyEngine = new TendencyEngine();
+
   // ── 渲染器初始化 ──
   initRenderer('#trail-canvas', trailLength);
   initStarryBackground('#starry-canvas');
+
+  // ── 视图切换器 ──
+  const viewSwitcher = new ViewSwitcher();
+  viewSwitcher.register('home', document.getElementById('home-view')!);
+  viewSwitcher.register('algo-test', document.getElementById('algo-test-view')!);
+  viewSwitcher.onSwitch((view) => {
+    setHomeMode(view === 'home');
+    setStarryHomeMode(view === 'home');
+    tendencyEngine.reset();
+  });
+  setHomeMode(true);
+  setStarryHomeMode(true);
+
+  // 入口光点点击：切换到对应视图
+  document.querySelectorAll<HTMLElement>('.home-entry[data-view]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const target = el.dataset.view as ViewName;
+      viewSwitcher.switchTo(target);
+    });
+  });
+
+  // 返回按钮：回到主页
+  document.getElementById('back-btn')?.addEventListener('click', () => {
+    viewSwitcher.switchTo('home');
+  });
 
   // ── UI 控制器初始化 ──
   const sliderController = new SliderController(
@@ -88,7 +134,7 @@ function main(): void {
       rValueEl: document.getElementById('r-value')!,
     },
     {
-      onNoiseChange: (value) => dataProcessor.updateNoise(value),
+      onNoiseChange: (value) => { dataProcessor.updateNoise(value); savedNoiseStdDev = value; },
       onMincutoffChange: (value) => dataProcessor.updateMincutoff(value),
       onBetaChange: (value) => dataProcessor.updateBeta(value),
       onTrailLengthChange: (value) => setMaxTrailLength(value),
@@ -136,26 +182,125 @@ function main(): void {
   let currentFps = 60;
   let lastStatsRefresh = performance.now();
   let lastKpiRefresh = performance.now();
+  let lastTendencyTime = performance.now();
+
+  // ── 计算入口光门数据 ──
+  function computePortalData(): PortalData[] {
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    const radius = 260;
+
+    return ENTRY_CONFIGS.map((entry) => ({
+      x: cx + radius * Math.cos(entry.angle),
+      y: cy + radius * Math.sin(entry.angle),
+      tendency: tendencyEngine.tendency,
+      label: entry.label,
+      angle: entry.angle,
+    }));
+  }
 
   // ── 鼠标移动处理 ──
+  let lastMouseMoveTime = performance.now();
+  let lastPanelUpdateTime = 0;
   function onMouseMove(e: MouseEvent): void {
+    lastMouseMoveTime = performance.now();
     const result = pipeline.process(e, currentFps);
     lastResult = result;
 
-    pushTrailPoint(result.noisy, result.smooth);
-    setPrediction(result.prediction);
-    panelRenderer.updateInfo(result.panelData);
+    const isHome = viewSwitcher.getCurrentView() === 'home';
+
+    if (isHome) {
+      // 主页模式：不推轨迹，不渲染箭头/预测点
+      // 仅保持管线运行以获取方向数据
+    } else {
+      pushTrailPoint(result.noisy, result.smooth);
+      setPrediction(result.prediction);
+    }
+
+    // 面板更新节流：每 100ms 更新一次 DOM
+    const now = performance.now();
+    if (now - lastPanelUpdateTime >= 100) {
+      panelRenderer.updateInfo(result.panelData);
+      lastPanelUpdateTime = now;
+    }
     historyRecorder.record(result.historyEntry);
   }
 
   // ── 动画循环调度 ──
-  function animationLoop(): void {
+  function animationLoop(now: number): void {
     currentFps = fpsCounter.tick();
     const drift = driftDetector.compute();
+    const isHome = viewSwitcher.getCurrentView() === 'home';
 
     panelRenderer.updateStats(currentFps, drift, getTrailLength());
 
-    const now = performance.now();
+    // 主页模式：禁用噪声注入，确保极度顺滑
+    dataProcessor.updateNoise(isHome ? 0 : savedNoiseStdDev);
+
+    // 每帧实时判断静止：超过 16ms（一帧）无 mousemove 即静止
+    const isStill = (now - lastMouseMoveTime) > 16;
+
+    // 静止时：lastResult 实时衰减到 0，确保面板每帧反映真实状态
+    if (lastResult && isStill) {
+      const decayFactor = Math.exp(-8 * (now - lastMouseMoveTime) / 1000);
+      // 原地修改，避免对象展开复制
+      lastResult.speed *= decayFactor;
+      lastResult.confidence *= decayFactor;
+      lastResult.prediction.vx *= decayFactor;
+      lastResult.prediction.vy *= decayFactor;
+      lastResult.prediction.speed *= decayFactor;
+      lastResult.prediction.confidence *= decayFactor;
+      lastResult.panelData.speed *= decayFactor;
+      lastResult.panelData.kalmanVx *= decayFactor;
+      lastResult.panelData.kalmanVy *= decayFactor;
+      lastResult.panelData.confidence *= decayFactor;
+      if (lastResult.speed < 1) {
+        lastResult.panelData.stateLabel = 'still';
+      }
+      // 面板更新节流：每 100ms 更新一次 DOM
+      if (now - lastPanelUpdateTime >= 100) {
+        panelRenderer.updateInfo(lastResult.panelData);
+        lastPanelUpdateTime = now;
+      }
+    }
+
+    // 引导效果：星空视差（静止时归零，实时响应）
+    if (lastResult && !isStill) {
+      const theta = lastResult.prediction.vx !== 0 || lastResult.prediction.vy !== 0
+        ? Math.atan2(lastResult.prediction.vy, lastResult.prediction.vx)
+        : 0;
+      setStarryParallax(theta, lastResult.confidence);
+    } else {
+      setStarryParallax(0, 0);
+    }
+
+    // ── 倾向引擎 + 双向导航 ──
+    const dt = (now - lastTendencyTime) / 1000;
+    lastTendencyTime = now;
+
+    if (lastResult && isHome) {
+      const targetAngle = ENTRY_CONFIGS[0].angle;
+
+      if (isStill) {
+        // 静止：立即归零，不经过慢速 decay
+        tendencyEngine.reset();
+        setStarryTendency(0, 0);
+      } else {
+        const predictedTheta = lastResult.prediction.vx !== 0 || lastResult.prediction.vy !== 0
+          ? Math.atan2(lastResult.prediction.vy, lastResult.prediction.vx)
+          : 0;
+
+        const tendency = tendencyEngine.update(dt, predictedTheta, targetAngle);
+        setStarryTendency(tendencyEngine.direction, tendency);
+
+        // 自动切换
+        if (tendency >= TENDENCY_THRESHOLD) {
+          viewSwitcher.switchTo('algo-test');
+        }
+      }
+
+      setPortals(computePortalData());
+    }
 
     if (lastResult && now - lastStatsRefresh >= STATS_REFRESH_MS) {
       lastStatsRefresh = now;
