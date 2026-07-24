@@ -1,8 +1,3 @@
-/**
- * 滑块控制器
- * 处理所有滑块输入事件，将值变更通知给回调函数
- */
-
 export interface SliderConfig {
   noiseSlider: HTMLInputElement;
   noiseValueEl: HTMLElement;
@@ -30,68 +25,94 @@ export interface SliderCallbacks {
   onRChange: (value: number) => void;
 }
 
+type SliderKey = keyof SliderConfig;
+
+interface SliderBinding {
+  sliderKey: SliderKey;
+  valueKey: SliderKey;
+  callback: (value: number) => void;
+  parse: (val: string) => number;
+  format: (val: number) => string;
+  transform?: (val: number) => number;
+}
+
 export class SliderController {
   private config: SliderConfig;
-  private callbacks: SliderCallbacks;
+  private bindings: SliderBinding[];
 
   constructor(config: SliderConfig, callbacks: SliderCallbacks) {
     this.config = config;
-    this.callbacks = callbacks;
+    this.bindings = this.buildBindings(callbacks);
     this.initSliders();
   }
 
+  private buildBindings(callbacks: SliderCallbacks): SliderBinding[] {
+    return [
+      {
+        sliderKey: 'noiseSlider',
+        valueKey: 'noiseValueEl',
+        callback: callbacks.onNoiseChange,
+        parse: parseFloat,
+        format: (v) => v.toFixed(1),
+      },
+      {
+        sliderKey: 'mincutoffSlider',
+        valueKey: 'mincutoffValueEl',
+        callback: callbacks.onMincutoffChange,
+        parse: parseFloat,
+        format: (v) => v.toFixed(1),
+      },
+      {
+        sliderKey: 'betaSlider',
+        valueKey: 'betaValueEl',
+        callback: callbacks.onBetaChange,
+        parse: parseFloat,
+        format: (v) => v.toFixed(3),
+      },
+      {
+        sliderKey: 'trailSlider',
+        valueKey: 'trailValueEl',
+        callback: callbacks.onTrailLengthChange,
+        parse: (v) => parseInt(v, 10),
+        format: (v) => String(v),
+      },
+      {
+        sliderKey: 'blendSlider',
+        valueKey: 'blendValueEl',
+        callback: callbacks.onBlendChange,
+        parse: (v) => parseInt(v, 10),
+        format: (v) => String(v),
+        transform: (v) => v / 100,
+      },
+      {
+        sliderKey: 'qSlider',
+        valueKey: 'qValueEl',
+        callback: callbacks.onQChange,
+        parse: (v) => parseInt(v, 10),
+        format: (v) => String(v),
+      },
+      {
+        sliderKey: 'rSlider',
+        valueKey: 'rValueEl',
+        callback: callbacks.onRChange,
+        parse: (v) => parseInt(v, 10),
+        format: (v) => String(v),
+      },
+    ];
+  }
+
   private initSliders(): void {
-    const {
-      noiseSlider, noiseValueEl,
-      mincutoffSlider, mincutoffValueEl,
-      betaSlider, betaValueEl,
-      trailSlider, trailValueEl,
-      blendSlider, blendValueEl,
-      qSlider, qValueEl,
-      rSlider, rValueEl,
-    } = this.config;
+    for (const binding of this.bindings) {
+      const slider = this.config[binding.sliderKey] as HTMLInputElement;
+      const valueEl = this.config[binding.valueKey] as HTMLElement;
 
-    noiseSlider.addEventListener('input', () => {
-      const value = parseFloat(noiseSlider.value);
-      noiseValueEl.textContent = value.toFixed(1);
-      this.callbacks.onNoiseChange(value);
-    });
-
-    mincutoffSlider.addEventListener('input', () => {
-      const value = parseFloat(mincutoffSlider.value);
-      mincutoffValueEl.textContent = value.toFixed(1);
-      this.callbacks.onMincutoffChange(value);
-    });
-
-    betaSlider.addEventListener('input', () => {
-      const value = parseFloat(betaSlider.value);
-      betaValueEl.textContent = value.toFixed(3);
-      this.callbacks.onBetaChange(value);
-    });
-
-    trailSlider.addEventListener('input', () => {
-      const value = parseInt(trailSlider.value, 10);
-      trailValueEl.textContent = String(value);
-      this.callbacks.onTrailLengthChange(value);
-    });
-
-    blendSlider.addEventListener('input', () => {
-      const value = parseInt(blendSlider.value, 10);
-      blendValueEl.textContent = String(value);
-      this.callbacks.onBlendChange(value / 100);
-    });
-
-    qSlider.addEventListener('input', () => {
-      const value = parseInt(qSlider.value, 10);
-      qValueEl.textContent = String(value);
-      this.callbacks.onQChange(value);
-    });
-
-    rSlider.addEventListener('input', () => {
-      const value = parseInt(rSlider.value, 10);
-      rValueEl.textContent = String(value);
-      this.callbacks.onRChange(value);
-    });
+      slider.addEventListener('input', () => {
+        const rawValue = binding.parse(slider.value);
+        valueEl.textContent = binding.format(rawValue);
+        const callbackValue = binding.transform ? binding.transform(rawValue) : rawValue;
+        binding.callback(callbackValue);
+      });
+    }
   }
 
   setInitialValues(values: {
@@ -103,12 +124,18 @@ export class SliderController {
     q: number;
     r: number;
   }): void {
-    this.config.noiseValueEl.textContent = values.noise.toFixed(1);
-    this.config.mincutoffValueEl.textContent = values.mincutoff.toFixed(1);
-    this.config.betaValueEl.textContent = values.beta.toFixed(3);
-    this.config.trailValueEl.textContent = String(values.trailLength);
-    this.config.blendValueEl.textContent = String(values.blend);
-    this.config.qValueEl.textContent = String(values.q);
-    this.config.rValueEl.textContent = String(values.r);
+    const pairs: Array<[SliderKey, number, (v: number) => string]> = [
+      ['noiseValueEl', values.noise, (v) => v.toFixed(1)],
+      ['mincutoffValueEl', values.mincutoff, (v) => v.toFixed(1)],
+      ['betaValueEl', values.beta, (v) => v.toFixed(3)],
+      ['trailValueEl', values.trailLength, (v) => String(v)],
+      ['blendValueEl', values.blend, (v) => String(v)],
+      ['qValueEl', values.q, (v) => String(v)],
+      ['rValueEl', values.r, (v) => String(v)],
+    ];
+
+    for (const [key, val, fmt] of pairs) {
+      (this.config[key] as HTMLElement).textContent = fmt(val);
+    }
   }
 }

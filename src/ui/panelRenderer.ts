@@ -1,8 +1,3 @@
-/**
- * 面板渲染器
- * 负责所有 UI 面板内容的渲染更新和 UI 事件绑定
- */
-
 import { StatsSummary } from '../debug/statsCollector';
 import { QualityKPI } from '../debug/qualityAnalyzer';
 import { HistoryRecorder } from '../debug/historyRecorder';
@@ -64,33 +59,10 @@ export class PanelRenderer {
   }
 
   private initEventHandlers(): void {
-    this.initCollapseHandlers();
-    this.initExportHandlers();
-  }
-
-  private initCollapseHandlers(): void {
-    document.querySelectorAll('.panel-header').forEach((header) => {
-      header.addEventListener('click', () => {
-        const section = header.parentElement;
-        if (section) section.classList.toggle('collapsed');
-      });
-    });
-  }
-
-  private initExportHandlers(): void {
-    if (!this.historyRecorder) return;
-
-    document.getElementById('btn-export-json')?.addEventListener('click', () => {
-      FileExporter.downloadJSON(this.historyRecorder!.exportJSON());
-    });
-
-    document.getElementById('btn-export-csv')?.addEventListener('click', () => {
-      FileExporter.downloadCSV(this.historyRecorder!.exportCSV());
-    });
-
-    document.getElementById('btn-clear-history')?.addEventListener('click', () => {
-      this.historyRecorder!.clear();
-    });
+    initCollapseHandlers();
+    if (this.historyRecorder) {
+      initExportHandlers(this.historyRecorder);
+    }
   }
 
   setFrozen(frozen: boolean): void {
@@ -155,4 +127,34 @@ export class PanelRenderer {
 function setText(id: string, text: string): void {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
+}
+
+let collapseHandlersInitialized = false;
+let exportHandlersInitialized = false;
+
+function initCollapseHandlers(): void {
+  if (collapseHandlersInitialized) return;
+  collapseHandlersInitialized = true;
+  document.querySelectorAll('.panel-header').forEach((header) => {
+    header.addEventListener('click', () => {
+      const section = header.parentElement;
+      if (section) section.classList.toggle('collapsed');
+    });
+  });
+}
+
+function initExportHandlers(historyRecorder: HistoryRecorder): void {
+  if (exportHandlersInitialized) return;
+  exportHandlersInitialized = true;
+  document.getElementById('btn-export-json')?.addEventListener('click', () => {
+    FileExporter.downloadJSON(historyRecorder.exportJSON());
+  });
+
+  document.getElementById('btn-export-csv')?.addEventListener('click', () => {
+    FileExporter.downloadCSV(historyRecorder.exportCSV());
+  });
+
+  document.getElementById('btn-clear-history')?.addEventListener('click', () => {
+    historyRecorder.clear();
+  });
 }

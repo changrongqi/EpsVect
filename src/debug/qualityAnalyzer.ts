@@ -1,9 +1,5 @@
-/**
- * 质量分析器
- * 基于历史记录数据计算算法质量 KPI
- */
-
 import { HistoryEntry } from './historyRecorder';
+import { radToDeg } from '../math/angleUtils';
 
 export interface QualityKPI {
   directionAccuracy: number;
@@ -14,7 +10,6 @@ export interface QualityKPI {
 }
 
 export class QualityAnalyzer {
-  /** 计算两个角度差（度），处理环绕 */
   private static angleDiffDeg(a: number, b: number): number {
     let diff = a - b;
     while (diff > 180) diff -= 360;
@@ -36,21 +31,17 @@ export class QualityAnalyzer {
     return { directionAccuracy, predErrorMean, responseLatency, stabilityStd, followScore };
   }
 
-  /** 方向精度：预测方向与实际移动方向的偏差均值（度） */
   private computeDirectionAccuracy(entries: HistoryEntry[]): number {
     const diffs: number[] = [];
     for (let i = 0; i < entries.length - 1; i++) {
       const e = entries[i];
       if (e.speed < 5) continue;
 
-      const predTheta = Math.atan2(e.vy, e.vx);
-      const predDeg = predTheta * 180 / Math.PI;
-
+      const predDeg = radToDeg(Math.atan2(e.vy, e.vx));
       const next = entries[i + 1];
       const actualDx = next.smoothX - e.smoothX;
       const actualDy = next.smoothY - e.smoothY;
-      const actualTheta = Math.atan2(actualDy, actualDx);
-      const actualDeg = actualTheta * 180 / Math.PI;
+      const actualDeg = radToDeg(Math.atan2(actualDy, actualDx));
 
       diffs.push(QualityAnalyzer.angleDiffDeg(predDeg, actualDeg));
     }
@@ -58,21 +49,19 @@ export class QualityAnalyzer {
     return diffs.reduce((a, b) => a + b, 0) / diffs.length;
   }
 
-  /** 预测误差均值（px） */
   private computePredErrorMean(entries: HistoryEntry[]): number {
     const errors = entries.filter((e) => e.speed >= 5).map((e) => e.predError);
     if (errors.length === 0) return 0;
     return errors.reduce((a, b) => a + b, 0) / errors.length;
   }
 
-  /** 响应延迟：方向突变后 smoothedTheta 跟上所需的平均帧数 */
   private computeResponseLatency(entries: HistoryEntry[]): number {
     const latencies: number[] = [];
-    let prevTheta = null;
+    let prevTheta: number | null = null;
 
     for (let i = 0; i < entries.length; i++) {
       const e = entries[i];
-      const thetaDeg = e.theta * 180 / Math.PI;
+      const thetaDeg = radToDeg(e.theta);
 
       if (prevTheta !== null && e.speed > 20) {
         const rawDiff = QualityAnalyzer.angleDiffDeg(thetaDeg, prevTheta);
@@ -82,7 +71,7 @@ export class QualityAnalyzer {
           const targetTheta = thetaDeg;
           for (let j = i; j < Math.min(i + 10, entries.length); j++) {
             frames++;
-            const smoothedDeg = entries[j].smoothedTheta * 180 / Math.PI;
+            const smoothedDeg = radToDeg(entries[j].smoothedTheta);
             const smoothedDiff = QualityAnalyzer.angleDiffDeg(smoothedDeg, targetTheta);
             if (smoothedDiff < rawDiff * 0.3) break;
             if (frames >= 10) break;
@@ -100,7 +89,6 @@ export class QualityAnalyzer {
     return latencies.reduce((a, b) => a + b, 0) / latencies.length;
   }
 
-  /** 静止稳定性：静止段滤波坐标标准差（px） */
   private computeStabilityStd(entries: HistoryEntry[]): number {
     const stillSegments: HistoryEntry[][] = [];
     let currentSegment: HistoryEntry[] = [];
@@ -133,7 +121,6 @@ export class QualityAnalyzer {
     return Math.sqrt(totalVariance / totalCount);
   }
 
-  /** 跟手性评分 0~100 */
   private computeFollowScore(
     directionAccuracy: number,
     predErrorMean: number,

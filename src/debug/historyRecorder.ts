@@ -1,7 +1,4 @@
-/**
- * 历史记录器
- * 环形缓冲区记录运行数据，支持 JSON/CSV 格式导出字符串
- */
+import { createRingBuffer, pushRing, getRingCount, getRingAt, clearRing } from '../util/ringBuffer';
 
 export interface HistoryEntry {
   timestamp: number;
@@ -22,16 +19,13 @@ export interface HistoryEntry {
 }
 
 export class HistoryRecorder {
-  private readonly buffer: HistoryEntry[];
-  private writeIdx = 0;
-  private count = 0;
+  private readonly buffer;
   private recording = true;
-
   private sampleCounter = 0;
   private readonly sampleRate: number;
 
   constructor(capacity: number = 600, sampleRate: number = 1) {
-    this.buffer = new Array<HistoryEntry>(capacity);
+    this.buffer = createRingBuffer<HistoryEntry>(capacity);
     this.sampleRate = sampleRate;
   }
 
@@ -48,8 +42,7 @@ export class HistoryRecorder {
   }
 
   clear(): void {
-    this.writeIdx = 0;
-    this.count = 0;
+    clearRing(this.buffer);
   }
 
   record(entry: Omit<HistoryEntry, 'timestamp'>): void {
@@ -59,20 +52,18 @@ export class HistoryRecorder {
     if (this.sampleCounter < this.sampleRate) return;
     this.sampleCounter = 0;
 
-    this.buffer[this.writeIdx] = { ...entry, timestamp: performance.now() };
-    this.writeIdx = (this.writeIdx + 1) % this.buffer.length;
-    if (this.count < this.buffer.length) this.count++;
+    pushRing(this.buffer, { ...entry, timestamp: performance.now() });
   }
 
   exportJSON(): string {
-    const entries = this.getAllEntries();
+    const entries = this.getEntries();
     return JSON.stringify(entries, null, 2);
   }
 
   exportCSV(): string {
     const headers = 'timestamp,rawX,rawY,smoothX,smoothY,predX,predY,vx,vy,speed,theta,smoothedTheta,confidence,state,predError';
     const rows: string[] = [headers];
-    const entries = this.getAllEntries();
+    const entries = this.getEntries();
     for (const e of entries) {
       rows.push([
         e.timestamp,
@@ -85,14 +76,10 @@ export class HistoryRecorder {
   }
 
   getEntries(): HistoryEntry[] {
-    return this.getAllEntries();
-  }
-
-  private getAllEntries(): HistoryEntry[] {
-    const entries: HistoryEntry[] = new Array(this.count);
-    for (let i = 0; i < this.count; i++) {
-      const idx = (this.writeIdx - this.count + i + this.buffer.length) % this.buffer.length;
-      entries[i] = this.buffer[idx];
+    const count = getRingCount(this.buffer);
+    const entries: HistoryEntry[] = new Array(count);
+    for (let i = 0; i < count; i++) {
+      entries[i] = getRingAt(this.buffer, i);
     }
     return entries;
   }

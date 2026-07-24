@@ -38,6 +38,8 @@ export class DataProcessor {
   private filterY: OneEuroFilter;
   private kalman: KalmanFilter;
   private noiseStdDev: number;
+  private mincutoff: number;
+  private beta: number;
   private kalmanQ: number;
   private kalmanR: number;
   private blendRatio: number;
@@ -46,9 +48,12 @@ export class DataProcessor {
   private prevSmoothY = 0;
   private prevTime = performance.now();
   private currentSpeed = 0;
+  private hasPrevSmooth = false;
 
   constructor(config: DataProcessorConfig) {
     this.noiseStdDev = config.noiseStdDev;
+    this.mincutoff = config.mincutoff;
+    this.beta = config.beta;
     this.kalmanQ = config.kalmanQ;
     this.kalmanR = config.kalmanR;
     this.blendRatio = config.blendRatio;
@@ -73,13 +78,14 @@ export class DataProcessor {
 
     let dx = 0;
     let dy = 0;
-    if (dtSec > 0.001) {
+    if (dtSec > 0.001 && this.hasPrevSmooth) {
       dx = smoothX - this.prevSmoothX;
       dy = smoothY - this.prevSmoothY;
       this.currentSpeed = Math.sqrt(dx * dx + dy * dy) / dtSec;
     }
     this.prevSmoothX = smoothX;
     this.prevSmoothY = smoothY;
+    this.hasPrevSmooth = true;
     this.prevTime = now;
 
     this.kalman.setDt(actualDtMs);
@@ -114,11 +120,13 @@ export class DataProcessor {
   }
 
   updateMincutoff(value: number): void {
+    this.mincutoff = value;
     this.filterX.setMinCutoff(value);
     this.filterY.setMinCutoff(value);
   }
 
   updateBeta(value: number): void {
+    this.beta = value;
     this.filterX.setBeta(value);
     this.filterY.setBeta(value);
   }
@@ -135,6 +143,21 @@ export class DataProcessor {
 
   updateBlendRatio(value: number): void {
     this.blendRatio = value;
+  }
+
+  applyProfile(config: DataProcessorConfig): void {
+    this.noiseStdDev = config.noiseStdDev;
+    this.mincutoff = config.mincutoff;
+    this.beta = config.beta;
+    this.kalmanQ = config.kalmanQ;
+    this.kalmanR = config.kalmanR;
+    this.blendRatio = config.blendRatio;
+    this.filterX = createOneEuroFilter({ freq: 60, mincutoff: config.mincutoff, beta: config.beta });
+    this.filterY = createOneEuroFilter({ freq: 60, mincutoff: config.mincutoff, beta: config.beta });
+    this.kalman.setQ(config.kalmanQ);
+    this.kalman.setR(config.kalmanR);
+    this.kalman.reset();
+    this.hasPrevSmooth = false;
   }
 
   getSpeed(): number {

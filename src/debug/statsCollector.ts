@@ -1,7 +1,5 @@
-/**
- * 统计采集器
- * 使用环形缓冲区维护最近 N 毫秒的采样数据，提供聚合统计
- */
+import { createRingBuffer, pushRing, getRingCount, getRingAt } from '../util/ringBuffer';
+import { avg, stdDev } from '../math/angleUtils';
 
 export interface StatsSample {
   time: number;
@@ -33,21 +31,17 @@ export interface StatsSummary {
 
 export class StatsCollector {
   private readonly windowMs: number;
-  private readonly buffer: StatsSample[];
-  private writeIdx = 0;
-  private count = 0;
-
-  /** 缓存上一帧的平滑坐标，用于计算预测误差 */
+  private readonly buffer = createRingBuffer<StatsSample>(600);
   private prevSmoothX = 0;
   private prevSmoothY = 0;
+  private prevTime = 0;
   private hasPrevSmooth = false;
 
   constructor(windowMs: number = 1000, capacity: number = 600) {
     this.windowMs = windowMs;
-    this.buffer = new Array<StatsSample>(capacity);
+    this.buffer = createRingBuffer<StatsSample>(capacity);
   }
 
-  /** 记录一帧数据，返回预测误差 */
   record(
     speed: number,
     lagDeg: number,
@@ -58,41 +52,50 @@ export class StatsCollector {
     predX: number,
     predY: number,
   ): number {
-    let predError = 0;
-    if (this.hasPrevSmooth && speed >= 5) {
-      const actualDx = smoothX - this.prevSmoothX;
-      const actualDy = smoothY - this.prevSmoothY;
-      const predDx = predX - smoothX;
-      const predDy = predY - smoothY;
-      const timeRatio = 16 / 100;
-      const expectedDx = predDx * timeRatio;
-      const expectedDy = predDy * timeRatio;
-      const dx = actualDx - expectedDx;
-      const dy = actualDy - expectedDy;
-      predError = Math.sqrt(dx * dx + dy * dy);
-    }
+    const now = performance.now();
+    const predError = this.computePredError(speed, smoothX, smoothY, predX, predY, now);
 
     this.prevSmoothX = smoothX;
     this.prevSmoothY = smoothY;
+    this.prevTime = now;
     this.hasPrevSmooth = true;
 
-    const sample: StatsSample = {
+    pushRing(this.buffer, {
       time: performance.now(),
       speed,
       lagDeg,
       confidence,
       fps,
       predError,
-    };
-
-    this.buffer[this.writeIdx] = sample;
-    this.writeIdx = (this.writeIdx + 1) % this.buffer.length;
-    if (this.count < this.buffer.length) this.count++;
+    });
 
     return predError;
   }
 
-  /** 计算窗口内的聚合统计 */
+  private computePredError(
+    speed: number,
+    smoothX: number,
+    smoothY: number,
+    predX: number,
+    predY: number,
+    now: number,
+  ): number {
+    if (!this.hasPrevSmooth || speed < 5) return 0;
+
+    const actualDx = smoothX - this.prevSmoothX;
+    const actualDy = smoothY - this.prevSmoothY;
+    const predDx = predX - smoothX;
+    const predDy = predY - smoothY;
+    // 使用实际帧间隔计算预测误差，兜底 16ms
+    const dtMs = Math.max(1, now - this.prevTime);
+    const timeRatio = Math.min(1, dtMs / 100);
+    const expectedDx = predDx * timeRatio;
+    const expectedDy = predDy * timeRatio;
+    const dx = actualDx - expectedDx;
+    const dy = actualDy - expectedDy;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
   summarize(): StatsSummary {
     const now = performance.now();
     const cutoff = now - this.windowMs;
@@ -101,51 +104,37 @@ export class StatsCollector {
     const confs: number[] = [];
     const predErrs: number[] = [];
     const fpsValues: number[] = [];
-    let fpsMin = Infinity;
-    let fpsMax = 0;
 
-    for (let i = 0; i < this.count; i++) {
-      const idx = (this.writeIdx - 1 - i + this.buffer.length) % this.buffer.length;
-      const s = this.buffer[idx];
-      if (!s) break;
-      if (s.time < cutoff) break;
+    const count = getRingCount(this.buffer);
+    for (let i = 0; i < count; i++) {
+      const s = getRingAt(this.buffer, i);
+      if (s.time < cutoff) continue;
 
       speeds.push(s.speed);
       lags.push(s.lagDeg);
       confs.push(s.confidence);
       if (s.predError > 0) predErrs.push(s.predError);
       if (s.fps > 0) fpsValues.push(s.fps);
-      if (s.fps < fpsMin) fpsMin = s.fps;
-      if (s.fps > fpsMax) fpsMax = s.fps;
     }
-
-    const avg = (arr: number[]) => (arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length);
-    const max = (arr: number[]) => (arr.length === 0 ? 0 : Math.max(...arr));
-    const min = (arr: number[]) => (arr.length === 0 ? 0 : Math.min(...arr));
-    const std = (arr: number[], mean: number) => {
-      if (arr.length < 2) return 0;
-      const sqDiffs = arr.map((v) => (v - mean) * (v - mean));
-      return Math.sqrt(sqDiffs.reduce((a, b) => a + b, 0) / arr.length);
-    };
 
     const speedAvg = avg(speeds);
     return {
       speedAvg,
-      speedMax: max(speeds),
-      speedMin: min(speeds),
-      speedStd: std(speeds, speedAvg),
+      speedMax: speeds.length === 0 ? 0 : Math.max(...speeds),
+      speedMin: speeds.length === 0 ? 0 : Math.min(...speeds),
+      speedStd: stdDev(speeds, speedAvg),
       lagAvg: avg(lags),
-      lagMax: max(lags),
-      lagMin: min(lags),
+      lagMax: lags.length === 0 ? 0 : Math.max(...lags),
+      lagMin: lags.length === 0 ? 0 : Math.min(...lags),
       confAvg: avg(confs),
-      confMax: max(confs),
-      confMin: min(confs),
+      confMax: confs.length === 0 ? 0 : Math.max(...confs),
+      confMin: confs.length === 0 ? 0 : Math.min(...confs),
       predErrorAvg: avg(predErrs),
-      predErrorMax: max(predErrs),
-      predErrorMin: min(predErrs),
+      predErrorMax: predErrs.length === 0 ? 0 : Math.max(...predErrs),
+      predErrorMin: predErrs.length === 0 ? 0 : Math.min(...predErrs),
       fpsAvg: avg(fpsValues),
-      fpsMax,
-      fpsMin: fpsMin === Infinity ? 0 : fpsMin,
+      fpsMax: fpsValues.length === 0 ? 0 : Math.max(...fpsValues),
+      fpsMin: fpsValues.length === 0 ? 0 : Math.min(...fpsValues),
     };
   }
 }

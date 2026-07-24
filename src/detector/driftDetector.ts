@@ -1,7 +1,4 @@
-/**
- * 漂移检测器
- * 检测鼠标静止时滤波坐标的最大偏移量
- */
+import { createRingBuffer, pushRing, getRingCount, clearRing, getRingAt } from '../util/ringBuffer';
 
 interface Point {
   x: number;
@@ -11,38 +8,33 @@ interface Point {
 const MAX_HISTORY = 120;
 
 export class DriftDetector {
-  private buffer: Point[] = new Array(MAX_HISTORY);
-  private writeIdx = 0;
-  private count = 0;
+  private buffer = createRingBuffer<Point>(MAX_HISTORY);
 
   push(x: number, y: number): void {
-    this.buffer[this.writeIdx] = { x, y };
-    this.writeIdx = (this.writeIdx + 1) % MAX_HISTORY;
-    if (this.count < MAX_HISTORY) this.count++;
+    pushRing(this.buffer, { x, y });
   }
 
   clear(): void {
-    this.writeIdx = 0;
-    this.count = 0;
+    clearRing(this.buffer);
   }
 
   compute(): number {
-    if (this.count < 2) return 0;
+    const count = getRingCount(this.buffer);
+    if (count < 2) return 0;
 
-    let sumX = 0, sumY = 0;
-    for (let i = 0; i < this.count; i++) {
-      const idx = (this.writeIdx - this.count + i + MAX_HISTORY) % MAX_HISTORY;
-      const p = this.buffer[idx];
+    let sumX = 0;
+    let sumY = 0;
+    for (let i = 0; i < count; i++) {
+      const p = getRingAt(this.buffer, i);
       sumX += p.x;
       sumY += p.y;
     }
-    const avgX = sumX / this.count;
-    const avgY = sumY / this.count;
+    const avgX = sumX / count;
+    const avgY = sumY / count;
 
     let maxDrift = 0;
-    for (let i = 0; i < this.count; i++) {
-      const idx = (this.writeIdx - this.count + i + MAX_HISTORY) % MAX_HISTORY;
-      const p = this.buffer[idx];
+    for (let i = 0; i < count; i++) {
+      const p = getRingAt(this.buffer, i);
       const dx = p.x - avgX;
       const dy = p.y - avgY;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -52,7 +44,6 @@ export class DriftDetector {
   }
 
   reset(): void {
-    this.writeIdx = 0;
-    this.count = 0;
+    clearRing(this.buffer);
   }
 }

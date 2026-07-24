@@ -16,38 +16,12 @@
         <h1 class="home-title">EpsVect</h1>
         <p class="home-subtitle">从极小的向量变化中读懂方向</p>
       </div>
-
-      <div class="home-entries">
-        <div class="home-entry" data-view="algo-test" style="--entry-angle: 0deg;">
-          <span class="entry-icon">◈</span>
-          <span class="entry-label">算法测试</span>
-        </div>
-        <div class="home-entry home-entry-disabled" style="--entry-angle: 60deg;">
-          <span class="entry-icon">◇</span>
-          <span class="entry-label">即将推出</span>
-        </div>
-        <div class="home-entry home-entry-disabled" style="--entry-angle: 120deg;">
-          <span class="entry-icon">◇</span>
-          <span class="entry-label">即将推出</span>
-        </div>
-        <div class="home-entry home-entry-disabled" style="--entry-angle: 180deg;">
-          <span class="entry-icon">◇</span>
-          <span class="entry-label">即将推出</span>
-        </div>
-        <div class="home-entry home-entry-disabled" style="--entry-angle: 240deg;">
-          <span class="entry-icon">◇</span>
-          <span class="entry-label">即将推出</span>
-        </div>
-        <div class="home-entry home-entry-disabled" style="--entry-angle: 300deg;">
-          <span class="entry-icon">◇</span>
-          <span class="entry-label">即将推出</span>
-        </div>
-      </div>
+      <!-- 入口由 canvas 3D 球面渲染，点击通过坐标检测 -->
     </div>
 
     <!-- 算法测试视图 -->
     <div id="algo-test-view" class="view">
-      <button id="back-btn" class="back-btn">← 返回主页</button>
+      <button id="back-btn" class="back-btn" data-action-id="back-home">← 返回主页</button>
 
       <!-- 信息面板 -->
       <div id="info-panel">
@@ -194,9 +168,9 @@
       <div id="control-panel">
         <div class="control-group">
           <label for="noise-slider">
-            噪声强度 <span id="noise-value">5.0</span> px
+            噪声强度 <span id="noise-value">0.0</span> px
           </label>
-          <input type="range" id="noise-slider" min="0" max="20" value="5" step="0.5" />
+          <input type="range" id="noise-slider" min="0" max="20" value="0" step="0.5" />
         </div>
         <div class="control-group">
           <label for="mincutoff-slider">
@@ -235,6 +209,60 @@
           </label>
           <input type="range" id="r-slider" min="10" max="5000" value="30" step="10" />
         </div>
+      </div>
+    </div>
+
+    <!-- 关于项目视图 -->
+    <div id="about-view" class="view sub-view">
+      <button class="back-btn" data-action-id="back-home">← 返回主页</button>
+      <div class="narrative-progress">
+        <div class="narrative-progress-fill"></div>
+      </div>
+      <div class="narrative-progress-label">01 / 05</div>
+      <div class="narrative-container">
+        <div id="about-content" class="narrative-content"></div>
+      </div>
+    </div>
+
+    <!-- 参数设置视图 -->
+    <div id="settings-view" class="view sub-view">
+      <button class="back-btn" data-action-id="back-home">← 返回主页</button>
+      <div class="narrative-progress">
+        <div class="narrative-progress-fill"></div>
+      </div>
+      <div class="narrative-progress-label">01 / 04</div>
+      <div class="settings-presets">
+        <span class="settings-presets-label">预设方案</span>
+        <button class="preset-btn" data-preset="low-latency" data-action-id="preset-low-latency">低延迟</button>
+        <button class="preset-btn" data-preset="high-stability" data-action-id="preset-high-stability">高稳定</button>
+        <button class="preset-btn" data-preset="balanced" data-action-id="preset-balanced">平衡</button>
+      </div>
+      <div class="narrative-container">
+        <div id="settings-content" class="narrative-content"></div>
+      </div>
+    </div>
+
+    <!-- 源代码视图 -->
+    <div id="source-code-view" class="view sub-view">
+      <button class="back-btn" data-action-id="back-home">← 返回主页</button>
+      <div class="narrative-progress">
+        <div class="narrative-progress-fill"></div>
+      </div>
+      <div class="narrative-progress-label">01 / 06</div>
+      <div class="narrative-container">
+        <div id="source-code-content" class="narrative-content"></div>
+      </div>
+    </div>
+
+    <!-- 数学推导视图 -->
+    <div id="math-derivation-view" class="view sub-view">
+      <button class="back-btn" data-action-id="back-home">← 返回主页</button>
+      <div class="narrative-progress">
+        <div class="narrative-progress-fill"></div>
+      </div>
+      <div class="narrative-progress-label">01 / 06</div>
+      <div class="narrative-container">
+        <div id="math-derivation-content" class="narrative-content"></div>
       </div>
     </div>
 

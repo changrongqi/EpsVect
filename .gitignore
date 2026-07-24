@@ -147,7 +147,15 @@ build/
 .DS_Store
 Thumbs.db
 *.tmp
+*.bak
 test_data/
+
+# Trae IDE
+.trae/
 
 # 本地设计方案文档
 WebPageDesignProposal.md
+PROJECT_PLAN.md
+
+# 本地研究资料（PDF/docx/jpg/zip 等二进制文件）
+research_study/

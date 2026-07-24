@@ -3,7 +3,7 @@
  * 管理多个视图的显示/隐藏切换，支持快速丝滑过渡
  */
 
-export type ViewName = 'home' | 'algo-test';
+export type ViewName = 'home' | 'algo-test' | 'about' | 'settings' | 'source-code' | 'math-derivation';
 
 export class ViewSwitcher {
   private currentView: ViewName = 'home';
