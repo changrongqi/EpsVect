@@ -32,4 +32,6 @@ export interface AppContext {
   sliderController: SliderController;
   freezeController: FreezeController;
   panelRenderer: PanelRenderer;
+  /** 销毁应用：释放所有渲染器、RAF、监听器（HMR/卸载时调用） */
+  destroy: () => void;
 }

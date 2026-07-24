@@ -43,6 +43,9 @@ export class MouseHandler {
     if (!isHome) {
       pushTrailPoint(result.noisy, result.smooth);
       setPrediction(result.prediction);
+    } else {
+      // home 模式不绘制预测箭头，清理残留避免切回时显示过时数据
+      setPrediction(null);
     }
 
     const now = performance.now();

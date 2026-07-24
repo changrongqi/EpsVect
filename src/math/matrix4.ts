@@ -128,9 +128,10 @@ export function addMat2x2(a: Mat2, b: Mat2): Mat2 {
 
 export function inv2x2(m: Mat2): Mat2 {
   const det = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+  // 奇异矩阵：返回零阵而非单位阵，使卡尔曼增益 K=0 忽略观测，避免静默发散
   if (Math.abs(det) < 1e-12) return [
-    [1, 0],
-    [0, 1],
+    [0, 0],
+    [0, 0],
   ];
   const invDet = 1 / det;
   return [

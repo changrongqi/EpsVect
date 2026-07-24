@@ -51,6 +51,10 @@ export class PanelRenderer {
   private config: PanelRendererConfig;
   private frozen = false;
   private historyRecorder?: HistoryRecorder;
+  // 保存 handler 引用以便 destroy 时移除（HMR 安全）
+  // M20：新增 keyHandler 引用，避免 keydown 监听器泄漏
+  private collapseBindings: Array<{ header: Element; handler: (e: Event) => void; keyHandler: (e: Event) => void }> = [];
+  private exportBindings: Array<{ el: HTMLElement; handler: (e: Event) => void }> = [];
 
   constructor(config: PanelRendererConfig, options?: PanelRendererOptions) {
     this.config = config;
@@ -59,10 +63,49 @@ export class PanelRenderer {
   }
 
   private initEventHandlers(): void {
-    initCollapseHandlers();
+    // 折叠面板：每个 .panel-header 绑定 click + 键盘支持
+    // M20 a11y：同步 aria-expanded，支持 Enter/Space 触发
+    document.querySelectorAll('.panel-header').forEach((header) => {
+      const handler = () => {
+        const section = header.parentElement;
+        if (section) {
+          const collapsed = section.classList.toggle('collapsed');
+          if (header instanceof HTMLElement) {
+            header.setAttribute('aria-expanded', String(!collapsed));
+          }
+        }
+      };
+      // 键盘支持：role="button" + tabindex="0" 需要响应 Enter/Space
+      const keyHandler = (e: Event) => {
+        const ke = e as KeyboardEvent;
+        if (ke.key === 'Enter' || ke.key === ' ' || ke.code === 'Space') {
+          // 焦点在 panel-header 自身时才触发，避免与 document 级 Space 冻结冲突
+          if (ke.target === header) {
+            ke.preventDefault();
+            handler();
+          }
+        }
+      };
+      header.addEventListener('click', handler);
+      header.addEventListener('keydown', keyHandler);
+      this.collapseBindings.push({ header, handler, keyHandler });
+    });
+
+    // 导出按钮
     if (this.historyRecorder) {
-      initExportHandlers(this.historyRecorder);
+      const hr = this.historyRecorder;
+      this.bindExport('btn-export-json', () => FileExporter.downloadJSON(hr.exportJSON()));
+      this.bindExport('btn-export-csv', () => FileExporter.downloadCSV(hr.exportCSV()));
+      this.bindExport('btn-clear-history', () => hr.clear());
     }
+  }
+
+  private bindExport(id: string, handler: () => void): void {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const wrapped = () => handler();
+    el.addEventListener('click', wrapped);
+    this.exportBindings.push({ el, handler: wrapped });
   }
 
   setFrozen(frozen: boolean): void {
@@ -102,13 +145,13 @@ export class PanelRenderer {
     setText('stat-lag-max', `${summary.lagMax.toFixed(1)}`);
     setText('stat-lag-min', `${summary.lagMin.toFixed(1)}`);
     setText('stat-conf-cur', conf.toFixed(3));
-    setText('stat-conf-avg', summary.confAvg.toFixed(3));
-    setText('stat-conf-max', summary.confMax.toFixed(3));
-    setText('stat-conf-min', summary.confMin.toFixed(3));
+    setText('stat-conf-avg', `${summary.confAvg.toFixed(3)}`);
+    setText('stat-conf-max', `${summary.confMax.toFixed(3)}`);
+    setText('stat-conf-min', `${summary.confMin.toFixed(3)}`);
     setText('stat-prederr-cur', predErr.toFixed(1));
-    setText('stat-prederr-avg', summary.predErrorAvg.toFixed(1));
-    setText('stat-prederr-max', summary.predErrorMax.toFixed(1));
-    setText('stat-prederr-min', summary.predErrorMin.toFixed(1));
+    setText('stat-prederr-avg', `${summary.predErrorAvg.toFixed(1)}`);
+    setText('stat-prederr-max', `${summary.predErrorMax.toFixed(1)}`);
+    setText('stat-prederr-min', `${summary.predErrorMin.toFixed(1)}`);
     setText('stat-fps-cur', String(fps));
     setText('stat-fps-avg', `${Math.round(summary.fpsAvg)}`);
     setText('stat-fps-max', `${summary.fpsMax}`);
@@ -122,39 +165,21 @@ export class PanelRenderer {
     setText('kpi-stability', `${kpi.stabilityStd.toFixed(2)} px`);
     setText('kpi-score', String(kpi.followScore));
   }
+
+  destroy(): void {
+    for (const { header, handler, keyHandler } of this.collapseBindings) {
+      header.removeEventListener('click', handler);
+      header.removeEventListener('keydown', keyHandler);
+    }
+    this.collapseBindings.length = 0;
+    for (const { el, handler } of this.exportBindings) {
+      el.removeEventListener('click', handler);
+    }
+    this.exportBindings.length = 0;
+  }
 }
 
 function setText(id: string, text: string): void {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
-}
-
-let collapseHandlersInitialized = false;
-let exportHandlersInitialized = false;
-
-function initCollapseHandlers(): void {
-  if (collapseHandlersInitialized) return;
-  collapseHandlersInitialized = true;
-  document.querySelectorAll('.panel-header').forEach((header) => {
-    header.addEventListener('click', () => {
-      const section = header.parentElement;
-      if (section) section.classList.toggle('collapsed');
-    });
-  });
-}
-
-function initExportHandlers(historyRecorder: HistoryRecorder): void {
-  if (exportHandlersInitialized) return;
-  exportHandlersInitialized = true;
-  document.getElementById('btn-export-json')?.addEventListener('click', () => {
-    FileExporter.downloadJSON(historyRecorder.exportJSON());
-  });
-
-  document.getElementById('btn-export-csv')?.addEventListener('click', () => {
-    FileExporter.downloadCSV(historyRecorder.exportCSV());
-  });
-
-  document.getElementById('btn-clear-history')?.addEventListener('click', () => {
-    historyRecorder.clear();
-  });
 }

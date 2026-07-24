@@ -12,7 +12,8 @@ export interface EntryRenderData {
   tendency: number;
 }
 
-interface ProjectedEntry extends EntryRenderData {
+// L19：导出 ProjectedEntry 供 canvas.ts 复用，避免重复定义
+export interface ProjectedEntry extends EntryRenderData {
   screenX: number;
   screenY: number;
   alpha: number;
@@ -24,10 +25,37 @@ interface ProjectedEntry extends EntryRenderData {
 const FISHEYE_F = 0.55;
 const HIGHLIGHT_MIN = 0.1;
 
-function fishEyeProject(
+// L18：对象池与缓存数组，避免每帧创建新对象/数组造成 GC 压力
+const projectionPool: ProjectedEntry[] = [];
+const projectionCache: ProjectedEntry[] = [];
+
+function ensurePoolItem(i: number): ProjectedEntry {
+  let item = projectionPool[i];
+  if (!item) {
+    item = {
+      id: '', label: '', theta: 0, phi: 0, tendency: 0,
+      screenX: 0, screenY: 0, alpha: 0, scale: 0,
+      driftTheta: 0, driftPhi: 0,
+    };
+    projectionPool[i] = item;
+  }
+  return item;
+}
+
+/** 鱼眼投影输出字段的最小接口，ProjectedEntry 与临时 ProjectionResult 均满足 */
+interface ProjectionOut {
+  screenX: number;
+  screenY: number;
+  alpha: number;
+  scale: number;
+}
+
+/** in-place 计算鱼眼投影，结果直接写入 out，避免分配中间对象 */
+function fishEyeProjectInto(
   theta: number, phi: number,
   cx: number, cy: number, f: number,
-): { screenX: number; screenY: number; alpha: number; scale: number } {
+  out: ProjectionOut,
+): void {
   const dx = Math.cos(phi) * Math.sin(theta);
   const dy = Math.sin(phi);
   const dz = Math.cos(phi) * Math.cos(theta);
@@ -37,12 +65,20 @@ function fishEyeProject(
   const screenDir = alpha > 0.001 ? Math.atan2(dz, dx) : 0;
   const scale = Math.cos(alpha * 0.55);
 
-  return {
-    screenX: cx + r * Math.cos(screenDir),
-    screenY: cy - r * Math.sin(screenDir),
-    alpha,
-    scale,
-  };
+  out.screenX = cx + r * Math.cos(screenDir);
+  out.screenY = cy - r * Math.sin(screenDir);
+  out.alpha = alpha;
+  out.scale = scale;
+}
+
+/** drawEntryText 中按字符调用，量小（5 入口 × ~6 字符 = 30 次/帧），保留分配式实现 */
+function fishEyeProject(
+  theta: number, phi: number,
+  cx: number, cy: number, f: number,
+): ProjectionOut {
+  const out: ProjectionOut = { screenX: 0, screenY: 0, alpha: 0, scale: 0 };
+  fishEyeProjectInto(theta, phi, cx, cy, f, out);
+  return out;
 }
 
 export function projectEntries(entries: EntryRenderData[]): ProjectedEntry[] {
@@ -51,20 +87,27 @@ export function projectEntries(entries: EntryRenderData[]): ProjectedEntry[] {
   const f = Math.min(window.innerWidth, window.innerHeight) * FISHEYE_F;
   const t = performance.now() / 1000;
 
-  return entries.map((entry) => {
+  // L18：复用 cache 数组与 pool 对象，避免每帧分配
+  projectionCache.length = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const src = entries[i];
+    const entry = ensurePoolItem(i);
+    entry.id = src.id;
+    entry.label = src.label;
+    entry.theta = src.theta;
+    entry.phi = src.phi;
+    entry.tendency = src.tendency;
+
     const driftAmp = 0.04;
     const driftFreq = 0.35 + entry.theta * 0.1;
-    const driftTheta = entry.theta + driftAmp * Math.sin(t * driftFreq + entry.phi * 2);
-    const driftPhi = entry.phi + driftAmp * 0.6 * Math.sin(t * driftFreq * 1.4 + entry.theta);
+    entry.driftTheta = entry.theta + driftAmp * Math.sin(t * driftFreq + entry.phi * 2);
+    entry.driftPhi = entry.phi + driftAmp * 0.6 * Math.sin(t * driftFreq * 1.4 + entry.theta);
 
-    const proj = fishEyeProject(driftTheta, driftPhi, cx, cy, f);
-    return {
-      ...entry,
-      ...proj,
-      driftTheta,
-      driftPhi,
-    };
-  });
+    fishEyeProjectInto(entry.driftTheta, entry.driftPhi, cx, cy, f, entry);
+
+    projectionCache.push(entry);
+  }
+  return projectionCache;
 }
 
 export function getHighlightedEntry(entries: ProjectedEntry[]): string | null {
@@ -81,14 +124,18 @@ export function getHighlightedEntry(entries: ProjectedEntry[]): string | null {
 }
 
 export function renderEntries(ctx: CanvasRenderingContext2D, entries: ProjectedEntry[]): void {
-  const sorted = [...entries].sort((a, b) => a.alpha - b.alpha);
-  for (const entry of sorted) {
+  // L18：in-place sort，避免每帧创建新数组（state.entries 会在下次 setEntries 时整体替换）
+  entries.sort((a, b) => a.alpha - b.alpha);
+  for (const entry of entries) {
     drawEntryText(ctx, entry);
   }
 }
 
 function drawEntryText(ctx: CanvasRenderingContext2D, entry: ProjectedEntry): void {
   const { label, tendency, driftTheta, driftPhi, scale } = entry;
+  // L24：scale < 0 表示入口位于鱼眼投影背面（cos(alpha*0.55) < 0），
+  // 此时字体会被 Math.max(14, 22*scale) 兜底为 14px 但视觉位置反转，跳过绘制更稳妥
+  if (scale < 0) return;
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
   const f = Math.min(window.innerWidth, window.innerHeight) * FISHEYE_F;

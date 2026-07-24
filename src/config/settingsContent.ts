@@ -25,6 +25,10 @@ export interface ParamDef {
   description: string;
   recommendation: string;
   format: (v: number) => string;
+  // L26：可选 transform，将滑块原始值转换为回调值（如 blend 滑块 0-100 → 0-1）。
+  // 在 settingsRenderer.setupBindings 中读取并赋给 binding.transform，
+  // 让 applyParamChange 收到的值已是目标单位，避免 /100 在多处重复定义
+  transform?: (v: number) => number;
 }
 
 export interface SettingsGroup {
@@ -77,7 +81,11 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         step: 0.001,
         defaultValue: 0.007,
         description: '速度系数。决定截止频率随速度上升的速率，越大对快速移动响应越好。',
-        recommendation: '默认 0.007 适用于大多数场景；快速操作选 0.02-0.05。',
+        // L46：recommendation 文本需覆盖所有预设值档位。
+        // - high-stability 预设 beta=0.005（极致平滑档）
+        // - balanced 预设 beta=0.007（默认档）
+        // - low-latency 预设 beta=0.03（快速操作档）
+        recommendation: '极致平滑选 0.003-0.005；默认 0.007 适用于大多数场景；快速操作选 0.02-0.05。',
         format: (v) => v.toFixed(3),
       },
     ],
@@ -141,6 +149,8 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         description: 'Kalman 速度权重。0%=纯瞬时速度（跟手但抖动），100%=纯 Kalman（平滑但延迟）。',
         recommendation: '默认 50% 平衡；追求跟手降到 20-40%；追求平滑升到 70-90%。',
         format: (v) => String(v),
+        // L26：滑块原始值 0-100，转换为 0-1 后再传给 applyParamChange
+        transform: (v) => v / 100,
       },
     ],
   },

@@ -1,23 +1,140 @@
 # EpsVect
 
-## EpsVect — Wherever you glance, the interface leans in.
+> 从极小的向量变化中读懂方向 —— 一个创新的人机交互 UI/UX 设计实验
 
-EpsVect is a novel HCI experiment that rethinks how humans navigate digital interfaces. Instead of requiring precise cursor movements and deliberate clicks to switch between panels, tabs, or views, EpsVect continuously reads the subtle direction of your wrist — predicting intent within the first few pixels of motion — and tilts, scales, and highlights the UI toward where you're already going. The interface comes to you, rather than the other way around.
+**在线体验**：[changrongqi.github.io/EpsVect](https://changrongqi.github.io/EpsVect)
 
-### The problem
+---
 
-Switching between UI elements today demands exact targeting (Fitts's law), long drags, and visual search. On dense dashboards and multi-pane layouts this is slow, tiring, and cognitively heavy.
+## 这个项目是什么
 
-### The idea
+EpsVect 是一个**展示性实验项目**，目的不是做一个产品，而是验证一种新的 UI/UX 设计思想：
 
-A nudge of the wrist carries intent. A 3px movement already tells you which way the user wants to go — if you listen carefully enough. EpsVect combines an adaptive One Euro Filter (for sub-pixel jitter removal) with a tuned Kalman Filter (for velocity-based direction prediction) to decode intent in under 50ms, then animates the UI to guide the gesture home. The cursor doesn't cross the screen alone — the interface bends toward the destination.
+**界面应该主动来找你，而不是你去找界面。**
 
-### What this means for UX
+传统 UI 导航要求你精确瞄准目标（Fitts's Law）、长距离拖动、在视觉噪声中搜索。EpsVect 提出另一种可能——系统持续读取鼠标移动的细微方向变化，在最初几像素的移动中预测你的意图，然后让界面向你正在前往的方向倾斜、缩放、高亮。你不需要点准，方向本身就足够。
 
-- Switch tabs, panes, and tools with tiny flicks rather than full drags
-- The UI tilts and glows in your predicted direction, confirming intent before you commit
-- Sub-pixel precision on noisy input (trackpads, high-DPI mice, touchpads)
-- Zero-click micro-navigation — direction becomes the input
-- Every parameter (filter smoothing, prediction horizon, UI response curve) is exposed for designers, not just engineers
+这个项目把这种思想做成了一个可交互的演示：一个仰望星空的主页，五个可以通过"鼠标动向预测"进入的子界面，以及一套完整的算法可视化与调参工具。
 
-This repository is both a research prototype and a production-ready library: a high-frequency signal pipeline, a rendering layer, and a debug toolkit (freeze inspection, sliding-window quality metrics, history recorder, JSON/CSV export) for designing and tuning intent-aware interfaces.
+---
+
+## 核心交互思想
+
+### 方向即意图
+
+手腕的一次轻拂就携带了意图。3 像素的移动已经告诉你用户想去哪里——只要你足够仔细地倾听。
+
+EpsVect 将**方向本身**作为输入，而非位置的附属品：
+
+1. **移动即预测**：鼠标开始移动的瞬间，系统预测你大致要去哪个方向
+2. **高亮即引导**：预测方向上的入口/按钮自动高亮，确认你的意图
+3. **点击即确认**：任意位置点击一下，触发当前高亮的入口——不需要精准命中
+
+### 界面即响应
+
+界面不是被动的等待点击的目标，而是主动向你倾斜的响应者：
+- 入口在球面上随你的视线方向漂移
+- 按钮的亮度随你的倾向强度连续变化
+- 整个界面的视觉重心跟随你的意图流动
+
+---
+
+## 五个子界面
+
+主页是一个仰望星空的视角，五个入口分布在球面周围。移动鼠标，系统预测你要去哪个入口并高亮它；任意位置点击即可进入：
+
+| 入口 | 子界面 | 内容 |
+|------|--------|------|
+| 算法测试 | 实时可视化 | 鼠标轨迹、方向预测、置信度、Kalman 速度、调试面板、参数滑块 |
+| 关于项目 | 设计理念 | 项目定位、解决的问题、核心理念、技术方案、项目状态 |
+| 参数设置 | 调参中心 | 4 组参数卡片 + 3 个预设方案（低延迟/高稳定/平衡） |
+| 源代码 | 架构说明 | 五层架构、数据流管线、核心算法、关键模块、扩展指南 |
+| 数学推导 | 公式推导 | One Euro Filter、Kalman Filter、置信度、倾向计算的数学推导 |
+
+所有子界面都支持同样的"鼠标动向预测 + 任意位置点击"交互，包括返回主页。
+
+---
+
+## 技术架构
+
+项目用 TypeScript 编写，基于 Vite 构建，核心由 One Euro Filter 与 Kalman Filter 双层架构驱动。
+
+### 五层架构
+
+```
+应用入口层 (app/)      bootstrap、事件绑定、DOM 引用
+核心控制层 (core/)      倾向引擎、动作调度、鼠标处理、管线
+数据处理层 (processor/ + filter/ + detector/)  滤波、方向检测、置信度、漂移
+渲染层 (renderer/)      Canvas 轨迹、星空背景、入口球面投影、鱼眼
+工具层 (util/ + math/ + debug/)  环形缓冲、角度数学、统计收集、历史记录
+```
+
+### 信号管线
+
+```
+鼠标原始坐标
+  → Gaussian 噪声注入（调试用）
+  → One Euro Filter（亚像素去抖）
+  → Kalman Filter（速度预测）
+  → 方向检测器（平滑角度 + 静止检测）
+  → 置信度计算器（速度 + 加速度 + 一致性）
+  → 倾向引擎（EMA 平滑 + 迟滞锁定）
+  → UI 高亮 + 入口漂移 + 星空视差
+```
+
+### 关键技术点
+
+- **One Euro Filter**：自适应低通滤波，低速时强平滑、高速时低延迟
+- **Kalman Filter**：基于速度模型预测未来位置，消除最后几帧延迟
+- **倾向引擎**：用 `cos(Δθ) × distance` 计算每个入口的倾向值，EMA 平滑（0.85/0.15），迟滞阈值（触发>0.15 / 取消<0.06）防止闪烁，500ms 锁定期防止快速切换
+- **鱼眼投影**：入口分布在 3D 球面上，通过鱼眼投影到 2D 屏幕，scale<0 的背面入口不绘制
+- **对象池**：投影对象复用，避免每帧 GC
+- **自定义光标系统**：系统光标全局隐藏（透明 GIF），hover 驱动的自定义光标策略
+
+---
+
+## 本地运行
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 类型检查
+npm run typecheck
+
+# 构建生产版本
+npm run build
+```
+
+---
+
+## 项目结构
+
+```
+src/
+├── app/           应用入口与事件绑定
+├── config/        内容配置（章节文案、参数定义、入口配置）
+├── core/          核心控制（倾向引擎、调度、管线、鼠标处理）
+├── debug/         调试工具（统计、历史记录、质量分析、导出）
+├── detector/      检测器（方向、置信度、漂移）
+├── filter/        滤波器（One Euro、Kalman）
+├── math/          数学工具（角度、4x4矩阵）
+├── processor/     数据处理器
+├── renderer/      渲染层（Canvas、星空、轨迹、入口）
+├── types/         类型声明
+├── ui/            UI 控制器（视图切换、光标、面板、滑块、叙事渲染）
+├── util/          通用工具（环形缓冲、FPS、HTML转义）
+├── main.ts        入口
+└── style.css      全局样式
+```
+
+---
+
+## 开源
+
+项目完全开源，欢迎克隆、研究、二次创作：
+
+**GitHub**：[github.com/changrongqi/EpsVect](https://github.com/changrongqi/EpsVect)

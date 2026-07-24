@@ -30,11 +30,17 @@ export class TendencyEngine {
     const angles = toArray(this.thetaWindow);
     const meanTheta = circularMean(angles, count);
 
-    const rawAlignment = Math.cos(meanTheta - targetAngle);
+    // 角度约定统一：
+    // - predictedTheta / meanTheta：从正东起算、atan2 风格（鼠标速度方向）
+    // - targetAngle：从正北起算、罗盘方位（与 entryConfig.theta 一致）
+    // 比较前需统一为同一约定。将 targetAngle 转为从正东起算：减去 π/2。
+    const targetAngleEast = targetAngle - Math.PI / 2;
+    const rawAlignment = Math.cos(meanTheta - targetAngleEast);
     this._alignment = Math.max(0, rawAlignment);
 
     if (this._alignment > 0.02) {
       this._tendency += this.k * this._alignment * (1 + this._tendency) * dt;
+      // _direction 保持从正北起算的原始约定（供 starry 等下游使用）
       this._direction = targetAngle;
     } else {
       this._tendency -= this.decay * this._tendency * dt;

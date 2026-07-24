@@ -24,7 +24,8 @@ export function createFpsCounter(): { tick: () => number; reset: () => void } {
   function reset(): void {
     frameCount = 0;
     lastTime = performance.now();
-    currentFps = 0;
+    // L37：保留合理初值 60，避免 reset 后首个 500ms 窗口内 tick 返回 0 误导用户以为掉帧
+    currentFps = 60;
   }
 
   return { tick, reset };

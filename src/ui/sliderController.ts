@@ -34,6 +34,8 @@ interface SliderBinding {
   parse: (val: string) => number;
   format: (val: number) => string;
   transform?: (val: number) => number;
+  // 保存 handler 引用以便 destroy 时移除（HMR 安全）
+  handler?: (e: Event) => void;
 }
 
 export class SliderController {
@@ -106,12 +108,23 @@ export class SliderController {
       const slider = this.config[binding.sliderKey] as HTMLInputElement;
       const valueEl = this.config[binding.valueKey] as HTMLElement;
 
-      slider.addEventListener('input', () => {
+      const handler = () => {
         const rawValue = binding.parse(slider.value);
         valueEl.textContent = binding.format(rawValue);
         const callbackValue = binding.transform ? binding.transform(rawValue) : rawValue;
         binding.callback(callbackValue);
-      });
+      };
+      binding.handler = handler;
+      slider.addEventListener('input', handler);
+    }
+  }
+
+  destroy(): void {
+    for (const binding of this.bindings) {
+      if (binding.handler) {
+        const slider = this.config[binding.sliderKey] as HTMLInputElement;
+        slider.removeEventListener('input', binding.handler);
+      }
     }
   }
 
@@ -124,18 +137,20 @@ export class SliderController {
     q: number;
     r: number;
   }): void {
-    const pairs: Array<[SliderKey, number, (v: number) => string]> = [
-      ['noiseValueEl', values.noise, (v) => v.toFixed(1)],
-      ['mincutoffValueEl', values.mincutoff, (v) => v.toFixed(1)],
-      ['betaValueEl', values.beta, (v) => v.toFixed(3)],
-      ['trailValueEl', values.trailLength, (v) => String(v)],
-      ['blendValueEl', values.blend, (v) => String(v)],
-      ['qValueEl', values.q, (v) => String(v)],
-      ['rValueEl', values.r, (v) => String(v)],
+    // 同步更新滑块位置和显示文本，避免两者不一致
+    const pairs: Array<{ sliderKey: SliderKey; valueKey: SliderKey; val: number; fmt: (v: number) => string }> = [
+      { sliderKey: 'noiseSlider', valueKey: 'noiseValueEl', val: values.noise, fmt: (v) => v.toFixed(1) },
+      { sliderKey: 'mincutoffSlider', valueKey: 'mincutoffValueEl', val: values.mincutoff, fmt: (v) => v.toFixed(1) },
+      { sliderKey: 'betaSlider', valueKey: 'betaValueEl', val: values.beta, fmt: (v) => v.toFixed(3) },
+      { sliderKey: 'trailSlider', valueKey: 'trailValueEl', val: values.trailLength, fmt: (v) => String(v) },
+      { sliderKey: 'blendSlider', valueKey: 'blendValueEl', val: values.blend, fmt: (v) => String(v) },
+      { sliderKey: 'qSlider', valueKey: 'qValueEl', val: values.q, fmt: (v) => String(v) },
+      { sliderKey: 'rSlider', valueKey: 'rValueEl', val: values.r, fmt: (v) => String(v) },
     ];
 
-    for (const [key, val, fmt] of pairs) {
-      (this.config[key] as HTMLElement).textContent = fmt(val);
+    for (const { sliderKey, valueKey, val, fmt } of pairs) {
+      (this.config[sliderKey] as HTMLInputElement).value = String(val);
+      (this.config[valueKey] as HTMLElement).textContent = fmt(val);
     }
   }
 }

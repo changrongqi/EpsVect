@@ -6,7 +6,7 @@ const THETA_HISTORY_SIZE = 10;
 export class ConfidenceCalculator {
   private thetaBuffer = createRingBuffer<number>(THETA_HISTORY_SIZE);
   private smoothedConfidence = 0;
-  private prevConfidence = 0;
+  // L3：删除 prevConfidence（写入但从不读取，死字段）
 
   pushTheta(theta: number): void {
     pushRing(this.thetaBuffer, theta);
@@ -19,7 +19,6 @@ export class ConfidenceCalculator {
   compute(speed: number): number {
     if (speed < 5) {
       this.smoothedConfidence = 0;
-      this.prevConfidence = 0;
       return 0;
     }
 
@@ -35,7 +34,6 @@ export class ConfidenceCalculator {
 
     const rawConfidence = speedFactor * stabilityFactor;
     this.smoothedConfidence = 0.3 * rawConfidence + 0.7 * this.smoothedConfidence;
-    this.prevConfidence = this.smoothedConfidence;
 
     return this.smoothedConfidence;
   }
@@ -43,6 +41,5 @@ export class ConfidenceCalculator {
   reset(): void {
     clearRing(this.thetaBuffer);
     this.smoothedConfidence = 0;
-    this.prevConfidence = 0;
   }
 }

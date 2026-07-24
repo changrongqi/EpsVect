@@ -59,9 +59,10 @@ export const ABOUT_SECTIONS: NarrativeSection[] = [
     index: '02',
     title: '解决的问题',
     variant: 'standard',
-    highlights: ['Fitts\'s Law', '认知负担'],
+    // L44：含撇号的字符串改用双引号，避免单引号内转义降低可读性
+    highlights: ["Fitts's Law", '认知负担'],
     paragraphs: [
-      '当今的 UI 导航依赖精确的光标定位（Fitts\'s Law）、长距离拖动和视觉搜索。',
+      "当今的 UI 导航依赖精确的光标定位（Fitts's Law）、长距离拖动和视觉搜索。",
       '在密集的仪表盘和多面板布局中，这种方式缓慢、疲劳，且认知负担沉重。',
       '用户必须精确瞄准目标、执行完整的拖动手势、在视觉噪声中搜索——每一步都在消耗注意力。',
     ],
@@ -104,11 +105,13 @@ export const ABOUT_SECTIONS: NarrativeSection[] = [
     index: '05',
     title: '项目状态',
     variant: 'standard',
-    highlights: ['研究原型', '生产就绪'],
+    highlights: ['研究原型', '生产就绪', '开源'],
     paragraphs: [
       'EpsVect 既是一个研究原型，也是一个生产就绪的库。',
       '包含高频信号管线、渲染层和完整的调试工具包：冻结检查、滑动窗口质量指标、历史记录器、JSON/CSV 导出。',
       '用于设计和调优意图感知界面。',
+      '项目完全开源，源代码与完整文档托管于 GitHub：github.com/changrongqi/EpsVect',
+      '可在线体验：changrongqi.github.io/EpsVect',
     ],
   },
 ];

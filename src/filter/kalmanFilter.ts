@@ -47,10 +47,13 @@ export class KalmanFilter {
   private predictedX: [number, number, number, number] | null = null;
   private dt: number;
   private initialized: boolean;
+  // 保存 initialP 用于首帧/reset 时恢复协方差
+  private readonly initialP: number;
 
   constructor(config: Partial<KalmanConfig> = {}) {
     const { dt, Q, R, initialP } = { ...DEFAULT_CONFIG, ...config };
     this.dt = dt / 1000;
+    this.initialP = initialP;
 
     this.A = this.buildTransitionMatrix(this.dt);
     this.H = this.buildObservationMatrix();
@@ -114,13 +117,14 @@ export class KalmanFilter {
   }
 
   step(measX: number, measY: number): void {
-    this.project();
-
     if (!this.initialized) {
+      // 首帧：直接用测量值初始化状态，跳过 project（避免 P 被提前推进一帧）
       this.x = [measX, measY, 0, 0];
       this.predictedX = [measX, measY, 0, 0];
+      this.P = scaleMatrix(identity4(), this.initialP);
       this.initialized = true;
     } else {
+      this.project();
       this.update(measX, measY);
     }
   }
@@ -158,8 +162,11 @@ export class KalmanFilter {
 
   reset(): void {
     this.x = [0, 0, 0, 0];
-    this.P = scaleMatrix(identity4(), DEFAULT_CONFIG.initialP);
+    this.P = scaleMatrix(identity4(), this.initialP);
     this.predictedX = null;
     this.initialized = false;
+    // 还原 dt 与 A 矩阵为默认值，防止运行期 setDt 修改后 reset 未恢复
+    this.dt = DEFAULT_CONFIG.dt / 1000;
+    this.A = this.buildTransitionMatrix(this.dt);
   }
 }

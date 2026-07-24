@@ -17,7 +17,7 @@
  *   - 拖动结束后抑制一次 click，防止算法误触发
  */
 
-import type { ViewName } from './viewSwitcher';
+// L14：移除未使用的 ViewName 导入（setVisibleForView 参数已移除）
 
 const DRAG_THRESHOLD = 5; // px，mousedown 后移动超过此距离判定为拖动
 
@@ -35,7 +35,7 @@ const INTERACTIVE_SELECTOR = [
   '.narrative-flow-node',
   '.control-group',
   '.slider-container',
-  '.sub-view-content',
+  // L42：移除 .sub-view-content / .sub-view-title / .sub-view-body / .placeholder-text —— 旧版死代码类
   'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'span', 'li', 'code', 'pre',
   '.narrative-text',
@@ -46,9 +46,6 @@ const INTERACTIVE_SELECTOR = [
   '.narrative-heading',
   '.narrative-index',
   '.narrative-keyword',
-  '.placeholder-text',
-  '.sub-view-title',
-  '.sub-view-body',
   '.settings-card',
   '.settings-param',
   '.settings-presets',
@@ -65,8 +62,7 @@ const TEXT_SELECTOR = [
   'span', 'li', 'code', 'pre',
   '.narrative-text',
   '.narrative-manifesto-text',
-  '.sub-view-body',
-  '.placeholder-text',
+  // L42：移除 .sub-view-body / .placeholder-text —— 旧版死代码类
   '.settings-param-desc',
   '.settings-param-recommend',
   '.settings-presets-label',
@@ -83,16 +79,23 @@ export class CursorManager {
   private mouseDown = false;
   private suppressClickFlag = false;
   private visible = false;
+  // 缓存最近鼠标位置，供 onMouseUp 重新判断 hover 目标
+  private lastX = 0;
+  private lastY = 0;
 
   constructor() {
     this.el = document.createElement('div');
     this.el.id = 'custom-cursor';
+    // 光标元素自身不接受指针事件，否则 elementFromPoint 会返回光标自身
+    // 导致 onMouseUp 后误判为非交互区域而隐藏光标
+    this.el.style.pointerEvents = 'none';
     this.el.classList.add('cursor-default', 'cursor-hidden');
     document.body.appendChild(this.el);
   }
 
   /** 界面切换时重置状态（不再区分界面类型，统一 hover 驱动） */
-  setVisibleForView(_view: ViewName): void {
+  // L14：移除未使用的 view 参数，重命名为 resetState 更准确
+  resetState(): void {
     this.dragging = false;
     this.mouseDown = false;
     this.suppressClickFlag = false;
@@ -117,7 +120,9 @@ export class CursorManager {
   }
 
   onMouseMove(e: MouseEvent): void {
-    // 更新光标位置
+    // 更新光标位置和缓存坐标
+    this.lastX = e.clientX;
+    this.lastY = e.clientY;
     this.el.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
 
     // 拖动检测
@@ -136,7 +141,8 @@ export class CursorManager {
     if (this.dragging) return;
 
     // 非拖动：根据 hover 目标决定显隐和模式
-    const target = e.target as HTMLElement | null;
+    // L13：用 instanceof 检查替代 as 断言，避免 e.target 非 HTMLElement 时 closest 不存在
+    const target = e.target instanceof HTMLElement ? e.target : null;
     if (this.isInteractive(target)) {
       this.setMode(this.isSelectableText(target) ? 'text' : 'default');
       this.show();
@@ -152,8 +158,14 @@ export class CursorManager {
     this.mouseDown = false;
     this.dragging = false;
     this.setMode('default');
-    // 松开后根据当前 hover 目标重新判断显隐
-    this.hide();
+    // 松开后根据当前 hover 目标重新判断显隐，避免悬停在按钮上时光标消失
+    const target = document.elementFromPoint(this.lastX, this.lastY) as HTMLElement | null;
+    if (this.isInteractive(target)) {
+      this.setMode(this.isSelectableText(target) ? 'text' : 'default');
+      this.show();
+    } else {
+      this.hide();
+    }
   }
 
   /** 判断目标元素是否为可交互元素 */

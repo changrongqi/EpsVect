@@ -5,7 +5,8 @@
 
 import { TendencyEngine } from './tendency';
 import { PipelineResult } from './pipeline';
-import { ViewSwitcher, ViewName } from '../ui/viewSwitcher';
+// L47/noUnusedLocals: ViewName 类型未在本文使用，仅保留 ViewSwitcher
+import { ViewSwitcher } from '../ui/viewSwitcher';
 import { EntryTendency, EntryTendencyConfig } from './entryTendency';
 import { EntryRenderData } from '../renderer/entryRenderer';
 import { ActionTendencyController } from './actionTendencyController';
@@ -42,7 +43,9 @@ export class TendencyController {
   update(lastResult: PipelineResult | null, isHome: boolean, isStill: boolean, now: number): void {
     if (!lastResult) return;
 
-    const dt = Math.min(0.1, (now - this.lastTendencyTime) / 1000);
+    // dt 双向钳制：上界 0.1s 防止后台标签页回来时大跳变，
+    // 下界 0 防止时钟回拨导致负 dt（负 dt 会让 tendency 对齐/衰减逻辑反转）
+    const dt = Math.max(0, Math.min(0.1, (now - this.lastTendencyTime) / 1000));
     this.lastTendencyTime = now;
 
     const predictedTheta = lastResult.prediction.vx !== 0 || lastResult.prediction.vy !== 0
@@ -72,6 +75,8 @@ export class TendencyController {
       const config = this.entryConfigs.find((c) => c.id === lockedId);
       if (config) return config.theta;
     }
+    // 空数组保护：避免 entryConfigs[0] 为 undefined 导致后续 NaN 传播
+    if (this.entryConfigs.length === 0) return 0;
     return this.entryConfigs[0].theta;
   }
 
@@ -95,5 +100,8 @@ export class TendencyController {
   reset(): void {
     this.entryTendency.reset();
     this.tendencyEngine.reset();
+    // 重置 lastTendencyTime，否则 reset 后首帧 dt 会被钳到上限 0.1s，
+    // 导致 tendency 以最大 dt 推进产生跳变
+    this.lastTendencyTime = performance.now();
   }
 }

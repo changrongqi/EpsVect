@@ -26,6 +26,9 @@ export function drawTrailWithFade(
 
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+  // L25：颜色字符串一次拼接，alpha 通过 globalAlpha 调整，
+  // 避免每段 strokeStyle 字符串分配（100 段 trail 节省 100 次字符串拼接/帧）
+  ctx.strokeStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
 
   for (let i = 1; i < len; i++) {
     const t = i / len;
@@ -35,13 +38,15 @@ export function drawTrailWithFade(
     const prev = getBufferPoint(trail, i - 1);
     const curr = getBufferPoint(trail, i);
 
-    ctx.beginPath();
-    ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+    ctx.globalAlpha = alpha;
     ctx.lineWidth = lw;
+    ctx.beginPath();
     ctx.moveTo(prev.x, prev.y);
     ctx.lineTo(curr.x, curr.y);
     ctx.stroke();
   }
+  // 恢复 globalAlpha，避免污染后续绘制（drawCursor/drawPredictionArrow 等）
+  ctx.globalAlpha = 1;
 }
 
 export function drawCursor(

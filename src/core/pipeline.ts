@@ -4,8 +4,9 @@
  * 对外暴露单一 process() 方法，返回统一的 PipelineResult
  */
 
-import { DataProcessor, ProcessedData } from '../processor/dataProcessor';
-import { DirectionDetector, DirectionResult } from '../detector/directionDetector';
+// L47/noUnusedLocals: ProcessedData/DirectionResult 类型未在本文使用，仅保留实际用到的运行时类
+import { DataProcessor } from '../processor/dataProcessor';
+import { DirectionDetector } from '../detector/directionDetector';
 import { ConfidenceCalculator } from '../detector/confidenceCalculator';
 import { DriftDetector } from '../detector/driftDetector';
 import { StatsCollector } from '../debug/statsCollector';
@@ -57,11 +58,14 @@ export class MousePipeline {
     this.directionDetector.pushMicroWindow(processed.smoothX, processed.smoothY);
     const dirResult = this.directionDetector.detect(processed.speed, processed.dx, processed.dy);
 
+    // 速度阈值迟滞：push 阈值 5，clear 阈值 3。
+    // 避免 4.9/5.1 抖动时 thetaBuffer 反复清空导致置信度失去稳定性度量。
     if (processed.speed >= 5) {
       this.confidenceCalculator.pushTheta(dirResult.theta);
-    } else {
+    } else if (processed.speed < 3) {
       this.confidenceCalculator.clearHistory();
     }
+    // 3 ≤ speed < 5：不 push 也不 clear，保留旧窗口供稳定性计算
     const confidence = this.confidenceCalculator.compute(processed.speed);
 
     if (processed.speed < 5) {
@@ -106,7 +110,7 @@ export class MousePipeline {
         speed: processed.speed,
         kalmanVx: kalmanVel.vx,
         kalmanVy: kalmanVel.vy,
-        thetaDeg: dirResult.smoothedTheta * 180 / Math.PI,
+        thetaDeg: Number.isNaN(dirResult.smoothedTheta) ? 0 : dirResult.smoothedTheta * 180 / Math.PI,
         confidence,
         lagDeg: dirResult.lagDeg,
         stateLabel: dirResult.stateLabel,
@@ -125,8 +129,10 @@ export class MousePipeline {
         vx: processed.vx,
         vy: processed.vy,
         speed: processed.speed,
-        theta: dirResult.theta,
-        smoothedTheta: dirResult.smoothedTheta,
+        // L5：dirResult.theta 在 speed<5 时可能为 NaN（保持上次方向或首次未初始化）
+        // 导出数据不能含 NaN，转为 0（与 panelData.thetaDeg 的 NaN 防御一致）
+        theta: Number.isNaN(dirResult.theta) ? 0 : dirResult.theta,
+        smoothedTheta: Number.isNaN(dirResult.smoothedTheta) ? 0 : dirResult.smoothedTheta,
         confidence,
         state: dirResult.stateLabel,
         predError,

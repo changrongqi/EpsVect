@@ -12,21 +12,14 @@ import {
   projectEntries,
   renderEntries,
   getHighlightedEntry as getHighlighted,
+  // L19：复用 entryRenderer 的 ProjectedEntry，避免重复定义与 as 桥接
+  type ProjectedEntry,
 } from './entryRenderer';
 import { drawAlgoTestView, type PredictionData } from './trailRenderer';
 
-export type { TrailPoint, EntryRenderData, PredictionData };
+export type { TrailPoint, EntryRenderData, PredictionData, ProjectedEntry };
 
 export type ViewMode = 'home' | 'algo-test' | 'sub';
-
-interface ProjectedEntry extends EntryRenderData {
-  screenX: number;
-  screenY: number;
-  alpha: number;
-  scale: number;
-  driftTheta: number;
-  driftPhi: number;
-}
 
 interface RendererState {
   canvas: HTMLCanvasElement;
@@ -41,6 +34,8 @@ interface RendererState {
 }
 
 let state: RendererState | null = null;
+// 保存 resize 监听器引用，多次 init 时先移除旧监听器，避免 HMR 累积
+let resizeHandler: (() => void) | null = null;
 
 export function initRenderer(
   canvasSelector: string,
@@ -52,8 +47,14 @@ export function initRenderer(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D context not available');
 
+  // 移除旧 resize 监听器（HMR 或重复 init 场景）
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler);
+  }
+  resizeHandler = () => resizeCanvas(canvas, ctx);
+  window.addEventListener('resize', resizeHandler);
+
   resizeCanvas(canvas, ctx);
-  window.addEventListener('resize', () => resizeCanvas(canvas, ctx));
 
   state = {
     canvas,
@@ -115,7 +116,9 @@ export function clearTrailData(): void {
 
 export function setEntries(entries: EntryRenderData[]): void {
   if (!state) return;
-  state.entries = projectEntries(entries) as ProjectedEntry[];
+  // L19：projectEntries 返回 ProjectedEntry[]，无需再 as 桥接
+  // L18：projectEntries 内部已用对象池，不再每帧分配新数组/对象
+  state.entries = projectEntries(entries);
 }
 
 export function getHighlightedEntry(): string | null {
@@ -135,7 +138,10 @@ export function setViewMode(mode: ViewMode): void {
   } else if (mode === 'algo-test') {
     setMaxTrailLength(state.savedTrailLength);
   } else {
+    // sub 模式：清理所有残留数据，确保子界面视觉隔离
     setMaxTrailLength(0);
+    state.prediction = null;
+    state.entries = [];
   }
 }
 
@@ -155,4 +161,16 @@ export function renderFrame(): void {
   }
 
   drawAlgoTestView(ctx, rawTrail, smoothTrail, prediction);
+}
+
+/**
+ * 销毁渲染器：移除 resize 监听器并清理状态
+ * HMR/应用卸载时调用，避免监听器累积与 state 引用残留
+ */
+export function destroyRenderer(): void {
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler);
+    resizeHandler = null;
+  }
+  state = null;
 }

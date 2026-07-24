@@ -25,6 +25,7 @@ export const SOURCE_CODE_SECTIONS: NarrativeSection[] = [
       'EpsVect 是一个用 TypeScript 编写的人机交互实验项目，基于 Vite 构建，核心由 One Euro Filter 与 Kalman Filter 双层架构驱动。',
       '它从极小的鼠标运动向量变化中读懂用户意图，在 50ms 内解码方向，然后让界面向预测方向倾斜、缩放和高亮。',
       '整个项目按单一职责原则拆分为五层：应用入口、核心控制、数据处理、渲染、工具，共 40 余个模块。',
+      '完整源代码开源于 GitHub：github.com/changrongqi/EpsVect —— 欢迎克隆、研究、二次创作。',
     ],
   },
   {

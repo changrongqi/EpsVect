@@ -67,13 +67,16 @@ export class QualityAnalyzer {
         const rawDiff = QualityAnalyzer.angleDiffDeg(thetaDeg, prevTheta);
 
         if (rawDiff > 30) {
+          // L35：frames 语义 = "smoothedTheta 收敛到 targetTheta 所经过的帧数"。
+          // 先判收敛再自增：第一帧已收敛则 frames=0（无延迟），每多一帧未收敛 frames+1。
+          // 上限 10 帧避免无限循环，超过视为未收敛。
           let frames = 0;
           const targetTheta = thetaDeg;
           for (let j = i; j < Math.min(i + 10, entries.length); j++) {
-            frames++;
             const smoothedDeg = radToDeg(entries[j].smoothedTheta);
             const smoothedDiff = QualityAnalyzer.angleDiffDeg(smoothedDeg, targetTheta);
             if (smoothedDiff < rawDiff * 0.3) break;
+            frames++;
             if (frames >= 10) break;
           }
           latencies.push(frames);
@@ -89,6 +92,12 @@ export class QualityAnalyzer {
     return latencies.reduce((a, b) => a + b, 0) / latencies.length;
   }
 
+  /**
+   * L36：计算静止段的稳定性指标。
+   * 注意：此方法把 X/Y 偏差合并计算（variance = Σ((x-avgX)² + (y-avgY)²)），
+   * 返回的是"二维 RMSD（均方根位移）"而非单变量标准差。
+   * 字段名 stabilityStd 保留以维持 QualityKPI 接口稳定，语义为 RMSD。
+   */
   private computeStabilityStd(entries: HistoryEntry[]): number {
     const stillSegments: HistoryEntry[][] = [];
     let currentSegment: HistoryEntry[] = [];

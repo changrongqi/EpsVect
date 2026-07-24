@@ -14,6 +14,8 @@ export class ActionTendencyController {
   private readonly onActionsUpdate?: (actions: ActionRenderData[]) => void;
   private currentViewId: string | null = null;
   private lastRectRefreshTime = 0;
+  // 元素引用缓存：避免每帧 DOM 查询（热路径性能优化）
+  private elementCache: Map<string, HTMLElement> = new Map();
 
   constructor(options?: ActionTendencyControllerOptions) {
     this.onActionsUpdate = options?.onActionsUpdate;
@@ -24,6 +26,7 @@ export class ActionTendencyController {
     this.currentViewId = viewId;
     this.actionTendency = new ActionTendency(actions);
     this.lastRectRefreshTime = performance.now();
+    this.rebuildElementCache();
   }
 
   unregisterView(): void {
@@ -31,6 +34,7 @@ export class ActionTendencyController {
     this.actionTendency = null;
     this.currentViewId = null;
     this.lastHighlightId = null;
+    this.elementCache.clear();
   }
 
   update(predictedTheta: number): void {
@@ -50,25 +54,38 @@ export class ActionTendencyController {
     this.applyHighlights(renderData);
   }
 
+  private rebuildElementCache(): void {
+    this.elementCache.clear();
+    if (!this.currentViewId) return;
+    const viewEl = document.getElementById(`${this.currentViewId}-view`);
+    if (!viewEl) return;
+    viewEl.querySelectorAll<HTMLElement>('[data-action-id]').forEach((el) => {
+      const id = el.dataset.actionId;
+      if (id) {
+        this.elementCache.set(id, el);
+      }
+    });
+  }
+
   private refreshActionRects(): void {
     if (!this.actionTendency || !this.currentViewId) return;
 
     const viewEl = document.getElementById(`${this.currentViewId}-view`);
     if (!viewEl) return;
 
+    // 同步刷新元素缓存（防止 DOM 重建后引用失效）
+    this.rebuildElementCache();
+
     const configs: ActionConfig[] = [];
-    viewEl.querySelectorAll<HTMLElement>('[data-action-id]').forEach((el) => {
-      const id = el.dataset.actionId;
-      if (id) {
-        const rect = el.getBoundingClientRect();
-        configs.push({
-          id,
-          x: rect.left,
-          y: rect.top,
-          width: rect.width,
-          height: rect.height,
-        });
-      }
+    this.elementCache.forEach((el, id) => {
+      const rect = el.getBoundingClientRect();
+      configs.push({
+        id,
+        x: rect.left,
+        y: rect.top,
+        width: rect.width,
+        height: rect.height,
+      });
     });
 
     if (configs.length > 0) {
@@ -77,10 +94,7 @@ export class ActionTendencyController {
   }
 
   private queryActionElement(id: string): HTMLElement | null {
-    if (!this.currentViewId) return null;
-    const viewEl = document.getElementById(`${this.currentViewId}-view`);
-    if (!viewEl) return null;
-    return viewEl.querySelector<HTMLElement>(`[data-action-id="${id}"]`);
+    return this.elementCache.get(id) ?? null;
   }
 
   private applyHighlights(renderData: ActionRenderData[]): void {
@@ -127,9 +141,13 @@ export class ActionTendencyController {
     if (!this.currentViewId) return;
     const viewEl = document.getElementById(`${this.currentViewId}-view`);
     if (!viewEl) return;
-    viewEl.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((el) => {
+    // 重置所有 action 元素的样式：移除高亮类 + 清理 CSS 变量
+    // 否则视图切换后旧元素仍保留 --tendency-vis 导致视觉残留
+    viewEl.querySelectorAll<HTMLElement>('[data-action-id]').forEach((el) => {
       el.classList.remove(HIGHLIGHT_CLASS);
       el.classList.remove(ACTIVE_CLASS);
+      el.style.removeProperty('--tendency');
+      el.style.removeProperty('--tendency-vis');
     });
     this.lastHighlightId = null;
   }
@@ -147,6 +165,8 @@ export class ActionTendencyController {
     if (!this.actionTendency) return;
     this.actionTendency.decay();
     const renderData = this.actionTendency.getRenderData();
+    // 衰减期间也需通知下游（与 update 保持一致），否则渲染数据停滞在旧值
+    this.onActionsUpdate?.(renderData);
     this.applyHighlights(renderData);
   }
 }

@@ -66,5 +66,8 @@ export function createStars(count: number, w: number, h: number): Star[] {
   return stars;
 }
 
-export const STAR_COUNT = 350;
-export const STAR_COUNT_HOME = 250;
+// 星星总数：控制在"稀疏点缀"而非"密集铺满"的视觉密度。
+// 主页（仰望星空视角，入口球面是主角）用更少的星星留白；
+// 算法测试界面（轨迹是主角）稍多一些但仍保持稀疏。
+export const STAR_COUNT = 180;
+export const STAR_COUNT_HOME = 120;

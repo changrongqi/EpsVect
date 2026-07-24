@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <canvas id="starry-canvas"></canvas>
-    <canvas id="trail-canvas"></canvas>
+    <canvas id="starry-canvas" role="img" aria-label="星空背景"></canvas>
+    <canvas id="trail-canvas" role="img" aria-label="鼠标轨迹与方向预测可视化"></canvas>
 
     <!-- 主页视图 -->
     <div id="home-view" class="view">
@@ -26,8 +26,8 @@
       <!-- 信息面板 -->
       <div id="info-panel">
         <div class="panel-section" id="realtime-section">
-          <div class="panel-header" data-target="realtime-body">
-            <span id="freeze-indicator">实时</span>
+          <div class="panel-header" data-target="realtime-body" role="button" tabindex="0" aria-expanded="true" aria-controls="realtime-body">
+            <span id="freeze-indicator" aria-live="polite">实时</span>
             <span class="collapse-arrow">▼</span>
           </div>
           <div class="panel-body" id="realtime-body">
@@ -83,7 +83,7 @@
         </div>
 
         <div class="panel-section" id="stats-section">
-          <div class="panel-header" data-target="stats-body">
+          <div class="panel-header" data-target="stats-body" role="button" tabindex="0" aria-expanded="true" aria-controls="stats-body">
             <span>统计分析</span>
             <span class="collapse-arrow">▼</span>
           </div>
@@ -214,11 +214,14 @@
 
     <!-- 关于项目视图 -->
     <div id="about-view" class="view sub-view">
+      <!-- L39：所有子界面返回按钮共用 data-action-id="back-home" 是设计要求，
+           用于启用 click-anywhere 算法（鼠标移动方向预测 + 高亮 + 任意位置点击触发） -->
       <button class="back-btn" data-action-id="back-home">← 返回主页</button>
       <div class="narrative-progress">
         <div class="narrative-progress-fill"></div>
       </div>
-      <div class="narrative-progress-label">01 / 05</div>
+      <!-- L38：占位符文本，JS 在 setupProgress 中根据 sections 长度动态更新 -->
+      <div class="narrative-progress-label">-- / --</div>
       <div class="narrative-container">
         <div id="about-content" class="narrative-content"></div>
       </div>
@@ -230,7 +233,7 @@
       <div class="narrative-progress">
         <div class="narrative-progress-fill"></div>
       </div>
-      <div class="narrative-progress-label">01 / 04</div>
+      <div class="narrative-progress-label">-- / --</div>
       <div class="settings-presets">
         <span class="settings-presets-label">预设方案</span>
         <button class="preset-btn" data-preset="low-latency" data-action-id="preset-low-latency">低延迟</button>
@@ -248,7 +251,7 @@
       <div class="narrative-progress">
         <div class="narrative-progress-fill"></div>
       </div>
-      <div class="narrative-progress-label">01 / 06</div>
+      <div class="narrative-progress-label">-- / --</div>
       <div class="narrative-container">
         <div id="source-code-content" class="narrative-content"></div>
       </div>
@@ -260,7 +263,7 @@
       <div class="narrative-progress">
         <div class="narrative-progress-fill"></div>
       </div>
-      <div class="narrative-progress-label">01 / 06</div>
+      <div class="narrative-progress-label">-- / --</div>
       <div class="narrative-container">
         <div id="math-derivation-content" class="narrative-content"></div>
       </div>

@@ -1,6 +1,5 @@
 import { createStars, STAR_COUNT, STAR_COUNT_HOME, type Star } from './starFactory';
-import { drawStar, drawGuideFlow } from './starRenderer';
-import { shortestAngleDiff } from '../math/angleUtils';
+import { drawStar } from './starRenderer';
 
 class StarryBackground {
   private canvas: HTMLCanvasElement | null = null;
@@ -13,11 +12,6 @@ class StarryBackground {
   private camY = 0;
   private targetCamX = 0;
   private targetCamY = 0;
-
-  private guideTheta = 0;
-  private guideConfidence = 0;
-  private smoothGuideTheta = 0;
-  private smoothGuideConfidence = 0;
 
   private homeMode = true;
 
@@ -33,8 +27,6 @@ class StarryBackground {
     const maxOffset = 50;
     this.targetCamX = confidence * maxOffset * Math.cos(theta);
     this.targetCamY = confidence * maxOffset * Math.sin(theta);
-    this.guideTheta = theta;
-    this.guideConfidence = confidence;
   }
 
   setHomeMode(enabled: boolean): void {
@@ -65,16 +57,11 @@ class StarryBackground {
     this.canvas.style.width = `${window.innerWidth}px`;
     this.canvas.style.height = `${window.innerHeight}px`;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // L22：resize 时按当前视口重新分布所有星星，避免旧星星落在视口外或分布不均
     const cssW = window.innerWidth;
     const cssH = window.innerHeight;
     const count = this.homeMode ? STAR_COUNT_HOME : STAR_COUNT;
-    const currentCount = this.stars.length;
-    if (count < currentCount) {
-      this.stars = this.stars.slice(0, count);
-    } else {
-      const newStars = createStars(count - currentCount, cssW, cssH);
-      this.stars = this.stars.concat(newStars);
-    }
+    this.stars = createStars(count, cssW, cssH);
   };
 
   private animate = (timestamp: number): void => {
@@ -83,9 +70,6 @@ class StarryBackground {
 
     this.camX += (this.targetCamX - this.camX) * 0.06;
     this.camY += (this.targetCamY - this.camY) * 0.06;
-
-    this.smoothGuideTheta += shortestAngleDiff(this.guideTheta, this.smoothGuideTheta) * 0.12;
-    this.smoothGuideConfidence += (this.guideConfidence - this.smoothGuideConfidence) * 0.1;
 
     this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
@@ -107,14 +91,18 @@ class StarryBackground {
   };
 
   init(selector: string): void {
+    // 重复 init 时先清理旧 RAF 和监听器，避免多重循环
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = 0;
+    }
+    window.removeEventListener('resize', this.resize);
+
     const el = document.querySelector(selector) as HTMLCanvasElement;
     if (!el) return;
     this.canvas = el;
-    this.canvas.style.position = 'fixed';
-    this.canvas.style.top = '0';
-    this.canvas.style.left = '0';
-    this.canvas.style.zIndex = '0';
-    this.canvas.style.pointerEvents = 'none';
+    // M21：定位样式由 CSS 统一管理（#starry-canvas 规则），此处不再以 JS 内联设置
+    // 避免 JS 未执行时 starry-canvas 以默认 inline 流布局占位破坏页面
 
     const c = this.canvas.getContext('2d');
     if (!c) return;
@@ -127,7 +115,9 @@ class StarryBackground {
   }
 
   destroy(): void {
+    // L21：cancel 后立即清零 animationId，避免 destroy 后被误判为仍在运行
     cancelAnimationFrame(this.animationId);
+    this.animationId = 0;
     window.removeEventListener('resize', this.resize);
     this.canvas = null;
     this.ctx = null;

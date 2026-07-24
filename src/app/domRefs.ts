@@ -1,3 +1,5 @@
+import { getElementByIdOrThrow } from './domUtils';
+
 export interface DomRefs {
   noiseSlider: HTMLInputElement;
   mincutoffSlider: HTMLInputElement;
@@ -10,13 +12,13 @@ export interface DomRefs {
 
 export function getDomRefs(): DomRefs {
   return {
-    noiseSlider: document.getElementById('noise-slider') as HTMLInputElement,
-    mincutoffSlider: document.getElementById('mincutoff-slider') as HTMLInputElement,
-    betaSlider: document.getElementById('beta-slider') as HTMLInputElement,
-    trailSlider: document.getElementById('trail-slider') as HTMLInputElement,
-    blendSlider: document.getElementById('blend-slider') as HTMLInputElement,
-    qSlider: document.getElementById('q-slider') as HTMLInputElement,
-    rSlider: document.getElementById('r-slider') as HTMLInputElement,
+    noiseSlider: getElementByIdOrThrow<HTMLInputElement>('noise-slider'),
+    mincutoffSlider: getElementByIdOrThrow<HTMLInputElement>('mincutoff-slider'),
+    betaSlider: getElementByIdOrThrow<HTMLInputElement>('beta-slider'),
+    trailSlider: getElementByIdOrThrow<HTMLInputElement>('trail-slider'),
+    blendSlider: getElementByIdOrThrow<HTMLInputElement>('blend-slider'),
+    qSlider: getElementByIdOrThrow<HTMLInputElement>('q-slider'),
+    rSlider: getElementByIdOrThrow<HTMLInputElement>('r-slider'),
   };
 }
 

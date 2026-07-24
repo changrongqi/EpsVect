@@ -25,14 +25,37 @@ export class ViewSwitcher {
     target.classList.add('active');
     this.currentView = viewName;
 
-    this.onSwitchCallbacks.forEach((cb) => cb(viewName));
+    // L17：try/catch 包裹每个回调，避免单个回调抛异常阻断后续回调
+    for (const cb of this.onSwitchCallbacks) {
+      try {
+        cb(viewName);
+      } catch (err) {
+        console.error('[ViewSwitcher] onSwitch callback error:', err);
+      }
+    }
   }
 
   getCurrentView(): ViewName {
     return this.currentView;
   }
 
-  onSwitch(callback: (view: ViewName) => void): void {
+  /**
+   * 注册视图切换回调。
+   * L16：返回取消订阅函数，调用后移除该回调，避免回调数组只增不减。
+   */
+  onSwitch(callback: (view: ViewName) => void): () => void {
     this.onSwitchCallbacks.push(callback);
+    return () => {
+      const idx = this.onSwitchCallbacks.indexOf(callback);
+      if (idx >= 0) {
+        this.onSwitchCallbacks.splice(idx, 1);
+      }
+    };
+  }
+
+  /** L16：destroy 时清空回调数组，防止 HMR 重载时回调累积 */
+  destroy(): void {
+    this.onSwitchCallbacks.length = 0;
+    this.views.clear();
   }
 }

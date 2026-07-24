@@ -35,7 +35,7 @@ bower_components
 .lock-wscript
 
 # Compiled binary addons (https://nodejs.org/api/addons.html)
-build/Release
+# L49：与下方 "build/" 规则重复，统一由 build/ 覆盖
 
 # Dependency directories
 node_modules/
@@ -71,7 +71,7 @@ web_modules/
 !.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
-.cache
+# L49：与下方 ".cache/" 规则重复，统一由 .cache/ 覆盖
 .parcel-cache
 
 # Next.js build output
@@ -159,3 +159,11 @@ PROJECT_PLAN.md
 
 # 本地研究资料（PDF/docx/jpg/zip 等二进制文件）
 research_study/
+
+# L50：常见 IDE / 编辑器忽略
+.idea/
+*.swp
+*.swo
+*~
+.vscode/*.log
+.vscode/.ropeproject/

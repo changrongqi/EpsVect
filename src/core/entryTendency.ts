@@ -47,7 +47,11 @@ export class EntryTendency {
     if (maxIndex >= 0 && maxTendency > 0) {
       const newLockId = this.configs[maxIndex].id;
       if (this.lockedEntryId !== newLockId) {
+        // 切换锁定目标
         this.lockedEntryId = newLockId;
+        this.lockEndTime = now + LOCK_DURATION_MS;
+      } else {
+        // 同一入口持续领先时续期，避免短暂静止导致锁过期后目标角跳变
         this.lockEndTime = now + LOCK_DURATION_MS;
       }
     }
@@ -60,6 +64,8 @@ export class EntryTendency {
   }
 
   getRenderData(): EntryRenderData[] {
+    // L10：空 configs 时显式返回空数组，避免隐式约定
+    if (this.configs.length === 0) return [];
     return this.configs.map((entry, i) => ({
       id: entry.id,
       label: entry.label,

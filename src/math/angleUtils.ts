@@ -19,9 +19,10 @@ export function angleDiffRad(a: number, b: number): number {
 }
 
 export function shortestAngleDiff(target: number, current: number): number {
+  // L6：用模运算替代 while 循环，避免大角度差时 O(n) 迭代
   let diff = target - current;
-  while (diff > Math.PI) diff -= TWO_PI;
-  while (diff < -Math.PI) diff += TWO_PI;
+  // 归一化到 [-π, π]：先 +π 使范围变为 [0, 2π] 附近，取模，再 -π 回到 [-π, π]
+  diff = ((diff + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI;
   return diff;
 }
 
@@ -44,7 +45,9 @@ export function circularStdDev(angles: number[], count: number): number {
     sumSin += Math.sin(angles[i]);
     sumCos += Math.cos(angles[i]);
   }
-  const R = Math.sqrt(sumSin * sumSin + sumCos * sumCos) / count;
+  // 浮点误差可能使 R 略大于 1（如 1.0000000001），导致 log(R) > 0，
+  // 进而 -2*log(R) < 0，sqrt(负数) = NaN。钳制到 [0.001, 1] 防御。
+  const R = Math.min(1, Math.sqrt(sumSin * sumSin + sumCos * sumCos) / count);
   return Math.sqrt(-2 * Math.log(Math.max(R, 0.001)));
 }
 

@@ -38,10 +38,9 @@ export class DataProcessor {
   private filterY: OneEuroFilter;
   private kalman: KalmanFilter;
   private noiseStdDev: number;
-  private mincutoff: number;
-  private beta: number;
-  private kalmanQ: number;
-  private kalmanR: number;
+  // L47/noUnusedLocals: mincutoff/beta/kalmanQ/kalmanR 字段仅写入未读取
+  // （setter 已直接调用下游 filter/kalman 的 setter 生效，无需在 DataProcessor 中备份）
+  // 已删除字段声明；setter 方法保留为公开 API，仅删除内部赋值
   private blendRatio: number;
 
   private prevSmoothX = 0;
@@ -52,10 +51,6 @@ export class DataProcessor {
 
   constructor(config: DataProcessorConfig) {
     this.noiseStdDev = config.noiseStdDev;
-    this.mincutoff = config.mincutoff;
-    this.beta = config.beta;
-    this.kalmanQ = config.kalmanQ;
-    this.kalmanR = config.kalmanR;
     this.blendRatio = config.blendRatio;
     this.filterX = createOneEuroFilter({ freq: 60, mincutoff: config.mincutoff, beta: config.beta });
     this.filterY = createOneEuroFilter({ freq: 60, mincutoff: config.mincutoff, beta: config.beta });
@@ -73,7 +68,7 @@ export class DataProcessor {
     const smoothX = filterCoordinate(this.filterX, noisyX);
     const smoothY = filterCoordinate(this.filterY, noisyY);
 
-    const actualDtMs = Math.min(200, now - this.prevTime);
+    const actualDtMs = Math.max(0, Math.min(200, now - this.prevTime));
     const dtSec = actualDtMs / 1000;
 
     let dx = 0;
@@ -120,24 +115,20 @@ export class DataProcessor {
   }
 
   updateMincutoff(value: number): void {
-    this.mincutoff = value;
     this.filterX.setMinCutoff(value);
     this.filterY.setMinCutoff(value);
   }
 
   updateBeta(value: number): void {
-    this.beta = value;
     this.filterX.setBeta(value);
     this.filterY.setBeta(value);
   }
 
   updateKalmanQ(value: number): void {
-    this.kalmanQ = value;
     this.kalman.setQ(value);
   }
 
   updateKalmanR(value: number): void {
-    this.kalmanR = value;
     this.kalman.setR(value);
   }
 
@@ -147,10 +138,6 @@ export class DataProcessor {
 
   applyProfile(config: DataProcessorConfig): void {
     this.noiseStdDev = config.noiseStdDev;
-    this.mincutoff = config.mincutoff;
-    this.beta = config.beta;
-    this.kalmanQ = config.kalmanQ;
-    this.kalmanR = config.kalmanR;
     this.blendRatio = config.blendRatio;
     this.filterX = createOneEuroFilter({ freq: 60, mincutoff: config.mincutoff, beta: config.beta });
     this.filterY = createOneEuroFilter({ freq: 60, mincutoff: config.mincutoff, beta: config.beta });
@@ -158,6 +145,13 @@ export class DataProcessor {
     this.kalman.setR(config.kalmanR);
     this.kalman.reset();
     this.hasPrevSmooth = false;
+    // L9：重置 prevTime/prevSmoothX/prevSmoothY，避免切换 profile 后首帧
+    // 用旧 prevTime 计算 dt（可能很大）导致速度计算异常，
+    // 以及用旧 prevSmoothX/Y 计算 dx/dy 导致方向检测偏置
+    this.prevTime = performance.now();
+    this.prevSmoothX = 0;
+    this.prevSmoothY = 0;
+    this.currentSpeed = 0;
   }
 
   getSpeed(): number {

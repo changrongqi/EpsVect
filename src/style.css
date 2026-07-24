@@ -1,9 +1,14 @@
+/* L40：抽取透明 GIF 数据 URL 为 --cursor-hidden 自定义属性，避免在多处重复长字符串 */
+:root {
+  --cursor-hidden: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7") 0 0, none;
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
   /* 透明 GIF 数据 URL 作为光标，比 cursor:none 兼容性更好，原生控件也会尊重 */
-  cursor: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7") 0 0, none !important;
+  cursor: var(--cursor-hidden) !important;
 }
 
 *::before,
@@ -23,30 +28,11 @@
 *::-webkit-clear-button,
 *::-webkit-inner-spin-button,
 *::-webkit-outer-spin-button {
-  cursor: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7") 0 0, none !important;
+  cursor: var(--cursor-hidden) !important;
 }
 
-/* 针对滑块的所有状态，强制隐藏系统光标 */
-input[type="range"],
-input[type="range"]:hover,
-input[type="range"]:active,
-input[type="range"]:focus {
-  cursor: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7") 0 0, none !important;
-}
-
-input[type="range"]::-webkit-slider-thumb,
-input[type="range"]:hover::-webkit-slider-thumb,
-input[type="range"]:active::-webkit-slider-thumb,
-input[type="range"]:focus::-webkit-slider-thumb {
-  cursor: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7") 0 0, none !important;
-}
-
-input[type="range"]::-moz-range-thumb,
-input[type="range"]:hover::-moz-range-thumb,
-input[type="range"]:active::-moz-range-thumb,
-input[type="range"]:focus::-moz-range-thumb {
-  cursor: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7") 0 0, none !important;
-}
+/* L40：删除 input[type="range"] 系列冗余规则——`*` 已覆盖所有元素与状态，
+   伪元素规则也已覆盖 ::-webkit-slider-thumb 等，无需重复定义 */
 
 html, body {
   width: 100%;
@@ -54,7 +40,7 @@ html, body {
   overflow: hidden;
   background: #1a1a2e;
   font-family: 'Segoe UI', Consolas, monospace;
-  cursor: none;
+  /* L41：删除 cursor: none——已被上方 `*` 规则的 !important 覆盖，此处为死代码 */
 }
 
 /* ===== 自定义光标 ===== */
@@ -131,6 +117,20 @@ html, body {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* M21：starry-canvas 定位样式由 CSS 统一管理，与 trail-canvas 保持一致。
+   原先由 starry.ts 以 JS 内联样式设置，JS 未执行时会以默认 inline 流布局占位破坏页面。
+   z-index: 0 让星空位于最底层；pointer-events: none 避免拦截鼠标事件。 */
+#starry-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* ===== 信息面板 ===== */
@@ -239,7 +239,9 @@ html, body {
 .stat-header,
 .stat-row {
   display: grid;
-  grid-template-columns: 1fr repeat(4, 52px);
+  /* L43：minmax(0, 1fr) 允许标签列在窄面板中缩小至 0 并触发 ellipsis，
+     固定列从 52px 缩到 44px 节省横向空间，避免面板溢出 */
+  grid-template-columns: minmax(0, 1fr) repeat(4, 44px);
   gap: 2px;
   line-height: 1.7;
 }
@@ -255,6 +257,10 @@ html, body {
 .stat-label {
   color: #999;
   font-size: 11px;
+  /* L43：标签列不换行，溢出时省略号显示，配合 minmax(0,1fr) 防止撑破面板 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-val {
@@ -442,6 +448,8 @@ html, body {
   font-weight: 200;
   letter-spacing: 8px;
   color: #e0e8ff;
+  /* 性能：text-shadow 动画无法 GPU 合成，改用静态 text-shadow + 动画 filter: drop-shadow()。
+     drop-shadow 走合成层，避免每帧重绘大块文字光晕。 */
   text-shadow:
     0 0 20px rgba(100, 180, 255, 0.4),
     0 0 40px rgba(100, 180, 255, 0.2);
@@ -457,8 +465,8 @@ html, body {
 }
 
 @keyframes titlePulse {
-  0%, 100% { text-shadow: 0 0 20px rgba(100, 180, 255, 0.4), 0 0 40px rgba(100, 180, 255, 0.2); }
-  50% { text-shadow: 0 0 30px rgba(100, 180, 255, 0.6), 0 0 60px rgba(100, 180, 255, 0.3); }
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(100, 180, 255, 0.4)); }
+  50% { filter: drop-shadow(0 0 30px rgba(100, 180, 255, 0.6)); }
 }
 
 /* 入口由 canvas 3D 球面渲染，无需 HTML 热区元素 */
@@ -470,46 +478,9 @@ html, body {
   justify-content: center;
 }
 
-.sub-view-content {
-  text-align: center;
-  max-width: 600px;
-  padding: 40px;
-}
-
-.sub-view-title {
-  font-size: 48px;
-  font-weight: 200;
-  letter-spacing: 6px;
-  color: #e0e8ff;
-  text-shadow:
-    0 0 20px rgba(100, 180, 255, 0.3),
-    0 0 40px rgba(100, 180, 255, 0.15);
-  margin-bottom: 24px;
-}
-
-.sub-view-body {
-  font-size: 16px;
-  color: #8899bb;
-  line-height: 1.8;
-  letter-spacing: 1px;
-}
-
-.sub-view-body p {
-  margin-bottom: 12px;
-}
-
-.placeholder-text {
-  color: #556677;
-  font-style: italic;
-}
-
-.coming-soon {
-  font-size: 24px;
-  color: #4fc3f7;
-  letter-spacing: 4px;
-  font-weight: 300;
-  opacity: 0.7;
-}
+/* L42：删除旧版子视图样式 .sub-view-content / .sub-view-title / .sub-view-body /
+   .placeholder-text / .coming-soon —— 当前子界面使用 NarrativeRenderer/SettingsRenderer
+   生成的 .narrative-* / .settings-* 类，旧版占位符样式已无 HTML 引用，属死代码 */
 
 /* ===== 返回按钮 ===== */
 .back-btn {
@@ -543,13 +514,15 @@ html, body {
 
 /* ===== 动作按钮算法高亮 ===== */
 /* 所有按钮的基础视觉反馈：用指数化 --tendency-vis，低置信度几乎无变化 */
+/* 性能：原 box-shadow 动画每帧触发重绘（重绘密集型属性），改用 filter: drop-shadow() 走 GPU 合成层。
+   drop-shadow 不支持 inset，inset 内层光晕仅在 .action-highlight 锁定态保留（单按钮，性能可控）。 */
 [data-action-id] {
   --tendency: 0;
   --tendency-vis: 0;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
   background: rgba(79, 195, 247, calc(var(--tendency-vis) * 0.18));
   border-color: rgba(79, 195, 247, calc(var(--tendency-vis) * 0.35));
-  box-shadow: 0 0 calc(var(--tendency-vis) * 14px) rgba(79, 195, 247, calc(var(--tendency-vis) * 0.4));
+  filter: drop-shadow(0 0 calc(var(--tendency-vis) * 14px) rgba(79, 195, 247, calc(var(--tendency-vis) * 0.4)));
   transform: scale(calc(1 + var(--tendency-vis) * 0.04));
 }
 
@@ -576,6 +549,10 @@ html, body {
   /* 隐藏原生滚动条，避免系统光标问题，用左侧进度线替代 */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
+}
+
+#about-view::-webkit-scrollbar {
+  display: none; /* Chrome/Edge/Safari */
 }
 
 #settings-view::-webkit-scrollbar {
@@ -721,13 +698,14 @@ html, body {
   color: #4fc3f7;
   letter-spacing: 4px;
   margin-bottom: 10px;
+  /* 性能：text-shadow 动画无法 GPU 合成，改用静态 text-shadow + 动画 filter: drop-shadow() */
   text-shadow: 0 0 12px rgba(79, 195, 247, 0.5);
   animation: indexPulse 3s ease-in-out infinite;
 }
 
 @keyframes indexPulse {
-  0%, 100% { text-shadow: 0 0 12px rgba(79, 195, 247, 0.4); }
-  50% { text-shadow: 0 0 20px rgba(79, 195, 247, 0.7); }
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(79, 195, 247, 0.4)); }
+  50% { filter: drop-shadow(0 0 12px rgba(79, 195, 247, 0.7)); }
 }
 
 /* —— 标题 —— */
@@ -741,22 +719,35 @@ html, body {
 }
 
 /* —— 装饰线：流动光带 —— */
+/* 性能：background-position 动画无法 GPU 合成（每帧重绘整条线）。
+   改用伪元素 + transform: translateX() 走合成层，避免主线程重绘。 */
 .narrative-line {
+  position: relative;
   height: 1px;
   margin: 20px 0 24px;
+  overflow: hidden;
+}
+
+.narrative-line::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
   background: linear-gradient(90deg,
     transparent,
     rgba(79, 195, 247, 0.5),
     rgba(79, 195, 247, 0.1),
     transparent);
-  background-size: 200% 100%;
-  background-position: 100% 0;
+  /* transform 百分比相对自身：50% = 伪元素宽度的 50% = 父元素宽度 */
   animation: lineFlow 4s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes lineFlow {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(50%); }
 }
 
 /* —— 正文段落 —— */
@@ -804,13 +795,12 @@ html, body {
   text-align: right;
 }
 
-.narrative-align-right .narrative-line {
+.narrative-align-right .narrative-line::before {
   background: linear-gradient(90deg,
     transparent,
     rgba(79, 195, 247, 0.1),
     rgba(79, 195, 247, 0.5),
     transparent);
-  background-size: 200% 100%;
 }
 
 /* —— manifesto 变体：居中大字宣言 —— */
@@ -985,7 +975,10 @@ html, body {
 }
 
 .narrative-formula-expr {
-  font-family: 'Consolas', 'Courier New', monospace;
+  /* L45：公式含特殊 Unicode 数学字符（𝒩 ε σ² ₜ ᵀ 等），等宽字体无法覆盖。
+     优先用数学符号字体渲染，再回退到等宽字体保证 xₜ/α 等常规字符的对齐。
+     顺序：数学符号字体 → 等宽字体 → 通用 monospace */
+  font-family: 'Cambria Math', 'Latin Modern Math', 'STIX Two Math', 'Segoe UI Symbol', 'Consolas', 'Courier New', monospace;
   font-size: 17px;
   font-weight: 400;
   color: #e0e8ff;
@@ -1040,10 +1033,6 @@ html, body {
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-}
-
-#settings-view::-webkit-scrollbar {
-  display: none;
 }
 
 /* —— 预设方案栏 —— */

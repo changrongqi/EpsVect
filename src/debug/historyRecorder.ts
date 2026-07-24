@@ -1,4 +1,4 @@
-import { createRingBuffer, pushRing, getRingCount, getRingAt, clearRing } from '../util/ringBuffer';
+import { createRingBuffer, pushRing, getRingCount, getRingAt, clearRing, type RingBuffer } from '../util/ringBuffer';
 
 export interface HistoryEntry {
   timestamp: number;
@@ -19,7 +19,8 @@ export interface HistoryEntry {
 }
 
 export class HistoryRecorder {
-  private readonly buffer;
+  // L34：显式标注 buffer 类型，避免缺类型注解导致的隐式 any
+  private readonly buffer: RingBuffer<HistoryEntry>;
   private recording = true;
   private sampleCounter = 0;
   private readonly sampleRate: number;
@@ -65,11 +66,12 @@ export class HistoryRecorder {
     const rows: string[] = [headers];
     const entries = this.getEntries();
     for (const e of entries) {
+      // L33：state 是字符串，可能含逗号/换行/引号，需 CSV 转义；数值字段直接拼接
       rows.push([
         e.timestamp,
         e.rawX, e.rawY, e.smoothX, e.smoothY, e.predX, e.predY,
         e.vx, e.vy, e.speed, e.theta, e.smoothedTheta,
-        e.confidence, e.state, e.predError,
+        e.confidence, escapeCSVField(e.state), e.predError,
       ].join(','));
     }
     return rows.join('\n');
@@ -83,4 +85,16 @@ export class HistoryRecorder {
     }
     return entries;
   }
+}
+
+/**
+ * L33：CSV 字段转义。
+ * 含逗号、换行、双引号或首尾空格的字段需用双引号包裹，
+ * 内部的双引号需用两个双引号转义（RFC 4180）
+ */
+function escapeCSVField(value: string): string {
+  if (/[",\n\r]/.test(value) || value !== value.trim()) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
 }
