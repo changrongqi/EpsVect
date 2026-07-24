@@ -5,19 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EpsVect — 鼠标动向预测</title>
     <link rel="stylesheet" href="/src/style.css" />
-  </head>
-  <body>
-    <!-- 移动端访问提示遮罩 -->
-    <div id="mobile-blocker">
-      <div class="mobile-blocker-content">
-        <h1>EpsVect</h1>
-        <p class="mobile-blocker-title">请使用电脑端访问</p>
-        <p class="mobile-blocker-desc">本作品基于鼠标移动方向预测的交互范式，需要鼠标设备才能完整体验。</p>
-        <p class="mobile-blocker-desc">请在 PC / 笔记本电脑浏览器中打开：</p>
-        <p class="mobile-blocker-url">changrongqi.github.io/EpsVect</p>
-      </div>
-    </div>
     <style>
+      /* 移动端拦截样式：放在 head 中，确保在 style.css 之后加载，优先级更高 */
       #mobile-blocker {
         display: none;
         position: fixed;
@@ -31,7 +20,6 @@
         padding: 2rem;
         font-family: -apple-system, 'Microsoft YaHei', sans-serif;
       }
-      #mobile-blocker.show { display: flex; }
       .mobile-blocker-content h1 {
         font-size: 2.4rem;
         font-weight: 200;
@@ -57,12 +45,29 @@
         margin-top: 0.5rem;
         font-family: monospace;
       }
-      /* 移动端拦截时隐藏所有应用内容 */
-      body.mobile-blocked > canvas,
-      body.mobile-blocked > .view {
-        display: none !important;
+
+      /* 纯 CSS 媒体查询检测移动端：不依赖 JS */
+      /* 条件1：不支持 hover 且屏幕 ≤1024px（手机/小平板） */
+      /* 条件2：触屏指针 且屏幕 ≤768px（手机） */
+      @media (hover: none) and (max-width: 1024px),
+             (pointer: coarse) and (max-width: 768px) {
+        #mobile-blocker { display: flex !important; }
+        body > canvas,
+        body > .view { display: none !important; }
       }
     </style>
+  </head>
+  <body>
+    <!-- 移动端访问提示遮罩 -->
+    <div id="mobile-blocker">
+      <div class="mobile-blocker-content">
+        <h1>EpsVect</h1>
+        <p class="mobile-blocker-title">请使用电脑端访问</p>
+        <p class="mobile-blocker-desc">本作品基于鼠标移动方向预测的交互范式，需要鼠标设备才能完整体验。</p>
+        <p class="mobile-blocker-desc">请在 PC / 笔记本电脑浏览器中打开：</p>
+        <p class="mobile-blocker-url">changrongqi.github.io/EpsVect</p>
+      </div>
+    </div>
     <canvas id="starry-canvas" role="img" aria-label="星空背景"></canvas>
     <canvas id="trail-canvas" role="img" aria-label="鼠标轨迹与方向预测可视化"></canvas>
 
