@@ -7,6 +7,70 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
+    <!-- 移动端访问提示遮罩 -->
+    <div id="mobile-blocker">
+      <div class="mobile-blocker-content">
+        <h1>EpsVect</h1>
+        <p class="mobile-blocker-title">请使用电脑端访问</p>
+        <p class="mobile-blocker-desc">本作品基于鼠标移动方向预测的交互范式，需要鼠标设备才能完整体验。</p>
+        <p class="mobile-blocker-desc">请在 PC / 笔记本电脑浏览器中打开：</p>
+        <p class="mobile-blocker-url">changrongqi.github.io/EpsVect</p>
+      </div>
+    </div>
+    <style>
+      #mobile-blocker {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: #0a0a1a;
+        color: #e0e8ff;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 2rem;
+        font-family: -apple-system, 'Microsoft YaHei', sans-serif;
+      }
+      #mobile-blocker.show { display: flex; }
+      .mobile-blocker-content h1 {
+        font-size: 2.4rem;
+        font-weight: 200;
+        letter-spacing: 0.4rem;
+        margin-bottom: 1.5rem;
+        color: #4fc3f7;
+        text-shadow: 0 0 30px rgba(79, 195, 247, 0.4);
+      }
+      .mobile-blocker-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+      }
+      .mobile-blocker-desc {
+        font-size: 0.95rem;
+        color: #8899bb;
+        line-height: 1.8;
+        margin-bottom: 0.5rem;
+      }
+      .mobile-blocker-url {
+        font-size: 1rem;
+        color: #4fc3f7;
+        margin-top: 0.5rem;
+        font-family: monospace;
+      }
+    </style>
+    <script>
+      // 移动端检测：在应用加载前拦截，避免无意义的资源加载
+      (function () {
+        var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+          || (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
+        if (isMobile) {
+          document.getElementById('mobile-blocker').classList.add('show');
+          // 阻止后续应用脚本加载
+          window.__BLOCK_APP__ = true;
+        }
+      })();
+    </script>
+
     <canvas id="starry-canvas" role="img" aria-label="星空背景"></canvas>
     <canvas id="trail-canvas" role="img" aria-label="鼠标轨迹与方向预测可视化"></canvas>
 
@@ -269,6 +333,11 @@
       </div>
     </div>
 
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module">
+      // 移动端被拦截时不加载应用
+      if (!window.__BLOCK_APP__) {
+        import('/src/main.ts');
+      }
+    </script>
   </body>
 </html>
